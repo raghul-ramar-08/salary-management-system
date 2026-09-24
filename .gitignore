@@ -1,0 +1,10 @@
+.gradle/
+**/build/
+out/
+.idea/
+*.iml
+data/
+docs/
+node_modules/
+dist/
+.angular/
