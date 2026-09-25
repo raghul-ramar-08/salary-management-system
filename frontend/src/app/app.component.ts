@@ -14,6 +14,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
           Employee directory
         </a>
         <a routerLink="/salary-records" routerLinkActive="active">Salary records</a>
+        <a routerLink="/dashboard" routerLinkActive="active">Compensation dashboard</a>
       </nav>
       <span class="role">HR MANAGER</span>
     </header>
