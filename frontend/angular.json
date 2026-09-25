@@ -28,6 +28,9 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          },
           "configurations": {
             "production": {
               "buildTarget": "salary-management-frontend:build:production"
@@ -40,5 +43,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "analytics": false
   }
 }
