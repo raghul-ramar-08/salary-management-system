@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { EmployeePage, EmployeeSearch } from '../models/employee';
+import { EmployeePage, EmployeeProfile, EmployeeSearch } from '../models/employee';
 
 @Injectable({ providedIn: 'root' })
 export class EmployeeApiService {
@@ -33,5 +33,9 @@ export class EmployeeApiService {
       filtersApplied: Boolean(criteria.query.trim() || criteria.countryCode || criteria.department || criteria.status)
     });
     return this.http.get<EmployeePage>(this.endpoint, { params });
+  }
+
+  profile(id: number): Observable<EmployeeProfile> {
+    return this.http.get<EmployeeProfile>(`${this.endpoint}/${id}`);
   }
 }

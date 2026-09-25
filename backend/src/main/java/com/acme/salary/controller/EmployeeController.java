@@ -1,6 +1,7 @@
 package com.acme.salary.controller;
 
 import com.acme.salary.dto.EmployeeResponse;
+import com.acme.salary.dto.EmployeeProfileResponse;
 import com.acme.salary.entity.Employee.EmploymentStatus;
 import com.acme.salary.service.EmployeeService;
 import jakarta.validation.constraints.Max;
@@ -12,6 +13,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -56,5 +58,10 @@ public class EmployeeController {
         log.debug("Employee directory search completed: returned={}, total={}",
                 result.getNumberOfElements(), result.getTotalElements());
         return result;
+    }
+
+    @GetMapping("/{id}")
+    public EmployeeProfileResponse getEmployee(@PathVariable("id") Long employeeId) {
+        return employeeService.profile(employeeId);
     }
 }

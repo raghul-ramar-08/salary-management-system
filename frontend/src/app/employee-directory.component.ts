@@ -10,6 +10,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
+import { RouterLink } from '@angular/router';
 import { debounceTime, Subject } from 'rxjs';
 import { Employee, EmployeeSearch } from './models/employee';
 import { EmployeeApiService } from './services/employee-api.service';
@@ -27,7 +28,8 @@ import { EmployeeApiService } from './services/employee-api.service';
     MatProgressBarModule,
     MatSelectModule,
     MatSortModule,
-    MatTableModule
+    MatTableModule,
+    RouterLink
   ],
   template: `
     <main class="page-shell">
@@ -98,7 +100,9 @@ import { EmployeeApiService } from './services/employee-api.service';
                 <div class="employee-cell">
                   <span class="avatar">{{ employee.firstName[0] }}{{ employee.lastName[0] }}</span>
                   <span>
-                    <strong>{{ employee.firstName }} {{ employee.lastName }}</strong>
+                  <a class="profile-link" [routerLink]="['/employees', employee.id]">
+                    {{ employee.firstName }} {{ employee.lastName }}
+                  </a>
                     <small>{{ employee.employeeNumber }}</small>
                   </span>
                 </div>
@@ -182,6 +186,8 @@ import { EmployeeApiService } from './services/employee-api.service';
     .employee-cell { display: flex; align-items: center; gap: 11px; min-width: 210px; }
     .avatar { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: #e7f0e9; color: #3c7156; font-size: 10px; font-weight: 700; }
     strong { color: #294239; font-size: 12px; font-weight: 600; }
+    .profile-link { color: #294239; font-size: 12px; font-weight: 600; text-decoration: none; }
+    .profile-link:hover { text-decoration: underline; }
     small { display: block; margin-top: 4px; color: #899991; font-size: 10px; }
     .primary-text { color: #3c554a; }
     .secondary-text { color: #899991; }

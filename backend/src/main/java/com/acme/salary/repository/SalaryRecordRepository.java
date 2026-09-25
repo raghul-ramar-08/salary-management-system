@@ -42,6 +42,8 @@ public interface SalaryRecordRepository extends JpaRepository<SalaryRecord, Long
     List<SalaryRecord> findByEmployee_EmployeeNumberIgnoreCaseOrderByEffectiveDateDescRecordedAtDesc(
             String employeeNumber);
 
+    List<SalaryRecord> findByEmployee_IdOrderByEffectiveDateDescRecordedAtDesc(Long employeeId);
+
     List<SalaryRecord> findByEmployee_IdOrderByEffectiveDateAsc(Long employeeId);
 
     boolean existsByEmployee_IdAndEffectiveDate(Long employeeId, LocalDate effectiveDate);

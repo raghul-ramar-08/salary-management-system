@@ -31,3 +31,11 @@ export interface EmployeeSearch {
   sortBy: string;
   direction: 'ASC' | 'DESC';
 }
+
+import { SalaryRecord } from '../features/salary-records/salary-record';
+
+export interface EmployeeProfile {
+  employee: Employee;
+  currentSalary: SalaryRecord | null;
+  salaryHistory: SalaryRecord[];
+}

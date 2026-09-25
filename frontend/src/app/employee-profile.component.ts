@@ -1,0 +1,294 @@
+import { CommonModule } from '@angular/common';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { SalaryApiService } from './features/salary-records/salary-api.service';
+import { SalaryRecord } from './features/salary-records/salary-record';
+import { EmployeeProfile } from './models/employee';
+import { EmployeeApiService } from './services/employee-api.service';
+
+@Component({
+  selector: 'app-employee-profile',
+  standalone: true,
+  imports: [CommonModule, FormsModule, RouterLink],
+  template: `
+    <main class="page-shell">
+      <a routerLink="/" class="back-link">← Employee directory</a>
+
+      <p *ngIf="loading" class="state-message" role="status">Loading employee profile…</p>
+      <p *ngIf="errorMessage" class="state-message error" role="alert">{{ errorMessage }}</p>
+
+      <ng-container *ngIf="profile as detail">
+        <header class="page-heading">
+          <div>
+            <p class="eyebrow">EMPLOYEE PROFILE</p>
+            <h1>{{ detail.employee.firstName }} {{ detail.employee.lastName }}</h1>
+            <p class="subtitle">{{ detail.employee.employeeNumber }} · {{ detail.employee.jobTitle }}</p>
+          </div>
+          <span class="status" [class.inactive]="detail.employee.status === 'INACTIVE'">
+            {{ detail.employee.status | titlecase }}
+          </span>
+        </header>
+
+        <section class="profile-grid" aria-label="Employee details">
+          <article class="panel">
+            <h2>Employment details</h2>
+            <dl>
+              <div><dt>Department</dt><dd>{{ detail.employee.department }}</dd></div>
+              <div><dt>Country</dt><dd>{{ countryName(detail.employee.countryCode) }}</dd></div>
+              <div><dt>Job level</dt><dd>{{ detail.employee.jobLevel || 'Not set' }}</dd></div>
+              <div><dt>Date joined</dt><dd>{{ detail.employee.dateOfJoining | date:'mediumDate' }}</dd></div>
+            </dl>
+          </article>
+
+          <article class="panel current-panel">
+            <h2>Current salary</h2>
+            <ng-container *ngIf="detail.currentSalary as salary; else noCurrentSalary">
+              <p class="salary-amount">{{ salary.amount | number:'1.2-2' }} {{ salary.currencyCode }}</p>
+              <p class="salary-period">
+                Effective {{ salary.effectiveDate | date:'mediumDate' }}
+                <ng-container *ngIf="salary.effectiveTo">
+                  through {{ salary.effectiveTo | date:'mediumDate' }}
+                </ng-container>
+              </p>
+              <p class="salary-reason">{{ salary.changeReason }}</p>
+            </ng-container>
+            <ng-template #noCurrentSalary>
+              <p class="muted">No salary record is active today.</p>
+            </ng-template>
+          </article>
+        </section>
+
+        <section class="panel salary-change-panel" aria-label="Record salary change">
+          <div class="section-heading">
+            <div>
+              <h2>Record salary change</h2>
+              <p>Adds a new versioned salary period and closes the preceding active period automatically</p>
+            </div>
+          </div>
+          <form class="salary-form" (ngSubmit)="submitSalaryChange(detail.employee.employeeNumber)">
+            <label>
+              <span>Annual amount</span>
+              <input type="number" name="amount" min="0.01" step="0.01" required [(ngModel)]="newAmount" placeholder="95000.00">
+            </label>
+            <label>
+              <span>Currency</span>
+              <select name="currencyCode" required [(ngModel)]="newCurrencyCode">
+                <option value="USD">USD</option>
+                <option value="INR">INR</option>
+                <option value="GBP">GBP</option>
+                <option value="EUR">EUR</option>
+                <option value="SGD">SGD</option>
+              </select>
+            </label>
+            <label>
+              <span>Effective date</span>
+              <input type="date" name="effectiveDate" required [(ngModel)]="newEffectiveDate">
+            </label>
+            <label class="reason-field">
+              <span>Change reason</span>
+              <input type="text" name="changeReason" maxlength="240" required [(ngModel)]="newChangeReason" placeholder="Annual merit increase or promotion">
+            </label>
+            <button type="submit" [disabled]="savingSalary">
+              {{ savingSalary ? 'Saving…' : 'Save salary record' }}
+            </button>
+          </form>
+          <p *ngIf="salaryFeedback" class="feedback" [class.error]="salaryError">{{ salaryFeedback }}</p>
+        </section>
+
+        <section class="panel history-panel">
+          <div class="section-heading">
+            <div><h2>Salary history</h2><p>Past, current, and scheduled salary periods</p></div>
+            <span>{{ detail.salaryHistory.length }} records</span>
+          </div>
+          <div class="table-scroll" *ngIf="detail.salaryHistory.length; else emptyHistory">
+            <table>
+              <thead>
+                <tr><th>ANNUAL SALARY</th><th>START DATE</th><th>END DATE</th><th>PERIOD STATUS</th><th>REASON</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let salary of detail.salaryHistory">
+                  <td><strong>{{ salary.amount | number:'1.2-2' }} {{ salary.currencyCode }}</strong></td>
+                  <td>{{ salary.effectiveDate | date:'mediumDate' }}</td>
+                  <td>{{ salary.effectiveTo ? (salary.effectiveTo | date:'mediumDate') : 'Open-ended' }}</td>
+                  <td>
+                    <span class="period-badge" [class.active-badge]="isCurrentRecord(detail.currentSalary, salary)">
+                      {{ periodStatusLabel(detail.currentSalary, salary) }}
+                    </span>
+                  </td>
+                  <td>{{ salary.changeReason }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ng-template #emptyHistory><p class="muted empty-state">No salary records are available.</p></ng-template>
+        </section>
+      </ng-container>
+    </main>
+  `,
+  styles: [`
+    :host { display:block; min-height:100vh; background:#f4f7f5; color:#203a32; font:14px Arial,sans-serif; }
+    .page-shell { max-width:1200px; margin:0 auto; padding:38px 5vw 48px; }
+    .back-link { display:inline-block; margin-bottom:24px; color:#3e745a; font-size:12px; text-decoration:none; }
+    .back-link:hover { text-decoration:underline; }
+    .page-heading,.section-heading { display:flex; align-items:center; justify-content:space-between; gap:18px; }
+    .page-heading { margin-bottom:22px; }
+    .eyebrow { margin:0 0 8px; color:#68877b; font-size:10px; font-weight:700; letter-spacing:.14em; }
+    h1 { margin:0; font-size:clamp(26px,3vw,34px); letter-spacing:-.04em; }
+    h2 { margin:0; font-size:16px; }
+    .subtitle { margin:8px 0 0; color:#71837b; font-size:13px; }
+    .profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .panel { margin:0 0 14px; border:1px solid #e0e8e2; border-radius:12px; background:#fff; box-shadow:0 8px 24px #18392a0a; }
+    .profile-grid .panel { padding:22px; }
+    dl { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin:22px 0 0; }
+    dt { color:#87958e; font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+    dd { margin:6px 0 0; color:#294239; font-size:13px; }
+    .salary-amount { margin:24px 0 4px; color:#294239; font-size:28px; font-weight:700; }
+    .salary-period,.salary-reason,.muted { color:#71837b; font-size:12px; }
+    .salary-reason { margin-top:20px; }
+    .status { border-radius:16px; padding:7px 11px; background:#e8f3eb; color:#417553; font-size:11px; font-weight:600; }
+    .status.inactive { background:#f1f2ef; color:#79837d; }
+    .salary-change-panel { padding-bottom:18px; }
+    .salary-form { display:grid; grid-template-columns:140px 110px 150px 1fr auto; gap:12px; align-items:end; padding:6px 22px 0; }
+    .salary-form label { display:grid; gap:6px; color:#68877b; font-size:11px; font-weight:600; }
+    .salary-form input,.salary-form select { height:36px; padding:0 10px; border:1px solid #d2ddd6; border-radius:8px; font-size:12px; color:#203a32; background:#fff; }
+    .salary-form button { height:36px; padding:0 16px; border:0; border-radius:8px; background:#173f36; color:#fff; font-size:12px; font-weight:600; cursor:pointer; }
+    .salary-form button:disabled { opacity:.6; cursor:default; }
+    .feedback { margin:10px 22px 0; color:#2f6b48; font-size:12px; }
+    .history-panel { overflow:hidden; }
+    .section-heading { padding:20px 22px 12px; }
+    .section-heading p { margin:6px 0 0; color:#87958e; font-size:11px; }
+    .section-heading span { color:#71837b; font-size:11px; }
+    .table-scroll { overflow-x:auto; }
+    table { width:100%; min-width:620px; border-collapse:collapse; }
+    th,td { padding:14px 18px; border-bottom:1px solid #edf1ee; text-align:left; }
+    th { color:#7e9188; font-size:10px; letter-spacing:.08em; }
+    td { color:#586b62; font-size:12px; }
+    .period-badge { display:inline-block; border-radius:12px; padding:4px 8px; background:#f1f4f2; color:#697b72; font-size:10px; font-weight:600; }
+    .period-badge.active-badge { background:#e8f3eb; color:#3c7156; }
+    .empty-state,.state-message { padding:22px; }
+    .error { color:#a23434; }
+    @media(max-width:860px) {
+      .page-shell { padding:26px 14px; }
+      .profile-grid { grid-template-columns:1fr; }
+      .salary-form { grid-template-columns:1fr 1fr; }
+      dl { gap:14px; }
+    }
+  `]
+})
+export class EmployeeProfileComponent implements OnInit {
+  private readonly route = inject(ActivatedRoute);
+  private readonly api = inject(EmployeeApiService);
+  private readonly salaryApi = inject(SalaryApiService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  private readonly countryNames: Record<string, string> = {
+    US: 'United States (US)',
+    IN: 'India (IN)',
+    GB: 'United Kingdom (GB)',
+    DE: 'Germany (DE)',
+    SG: 'Singapore (SG)'
+  };
+  private readonly defaultCurrencyByCountry: Record<string, string> = {
+    US: 'USD',
+    IN: 'INR',
+    GB: 'GBP',
+    DE: 'EUR',
+    SG: 'SGD'
+  };
+
+  profile: EmployeeProfile | null = null;
+  loading = true;
+  errorMessage = '';
+
+  newAmount: number | null = null;
+  newCurrencyCode = 'USD';
+  newEffectiveDate = new Date().toISOString().slice(0, 10);
+  newChangeReason = '';
+  savingSalary = false;
+  salaryFeedback = '';
+  salaryError = false;
+  private employeeId = 0;
+
+  ngOnInit(): void {
+    const id = Number(this.route.snapshot.paramMap.get('id'));
+    if (!Number.isInteger(id) || id <= 0) {
+      this.loading = false;
+      this.errorMessage = 'Employee profile was not found.';
+      return;
+    }
+    this.employeeId = id;
+    this.loadProfile();
+  }
+
+  countryName(code: string): string {
+    return this.countryNames[code] ?? code;
+  }
+
+  isCurrentRecord(current: SalaryRecord | null, candidate: SalaryRecord): boolean {
+    return current !== null && current.id === candidate.id;
+  }
+
+  periodStatusLabel(current: SalaryRecord | null, candidate: SalaryRecord): string {
+    if (this.isCurrentRecord(current, candidate)) {
+      return 'Current';
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    return candidate.effectiveDate > today ? 'Scheduled' : 'Historical';
+  }
+
+  submitSalaryChange(employeeNumber: string): void {
+    if (!this.newAmount || this.newAmount <= 0 || !this.newEffectiveDate || !this.newChangeReason.trim()) {
+      this.salaryError = true;
+      this.salaryFeedback = 'Provide a positive salary amount, effective date, and change reason.';
+      return;
+    }
+
+    this.savingSalary = true;
+    this.salaryFeedback = '';
+    this.salaryError = false;
+
+    this.salaryApi.add(employeeNumber, {
+      amount: this.newAmount,
+      currencyCode: this.newCurrencyCode,
+      effectiveDate: this.newEffectiveDate,
+      changeReason: this.newChangeReason.trim()
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.savingSalary = false;
+        this.salaryFeedback = 'Salary record added and history updated.';
+        this.newAmount = null;
+        this.newChangeReason = '';
+        this.loadProfile();
+      },
+      error: error => {
+        this.savingSalary = false;
+        this.salaryError = true;
+        this.salaryFeedback = error?.error?.message || error?.error?.detail
+          || (error.status === 409
+            ? 'A salary record already exists for that effective date.'
+            : 'Could not save salary record.');
+      }
+    });
+  }
+
+  private loadProfile(): void {
+    this.api.profile(this.employeeId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: profile => {
+        this.profile = profile;
+        this.loading = false;
+        this.newCurrencyCode = profile.currentSalary?.currencyCode
+          ?? this.defaultCurrencyByCountry[profile.employee.countryCode]
+          ?? 'USD';
+      },
+      error: error => {
+        this.loading = false;
+        this.errorMessage = error.status === 404
+          ? 'Employee profile was not found.'
+          : 'Could not load employee profile. Check that the backend is running.';
+      }
+    });
+  }
+}
+
