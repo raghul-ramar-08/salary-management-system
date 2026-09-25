@@ -128,4 +128,47 @@ class CompensationReportServiceTest {
         assertEquals(1, sales.headcount());
         assertEquals(new BigDecimal("59200.00"), sales.totalPayrollReportingCurrency());
     }
+
+    @Test
+    void distributionReportBucketsOrgAndCountrySalariesIntoConfigurableBands() {
+        LocalDate asOfDate = LocalDate.of(2026, 9, 26);
+
+        Employee in1 = new Employee("ACME-00001", "Priya", "Nair", "IN", "Engineering",
+                "Engineer", "L1", LocalDate.of(2023, 1, 1), EmploymentStatus.ACTIVE);
+        Employee us1 = new Employee("ACME-00002", "Avery", "Shah", "US", "Engineering",
+                "Engineer", "L3", LocalDate.of(2022, 1, 1), EmploymentStatus.ACTIVE);
+        Employee us2 = new Employee("ACME-00003", "Jordan", "Patel", "US", "Product",
+                "Director", "L6", LocalDate.of(2020, 1, 1), EmploymentStatus.ACTIVE);
+
+        List<SalaryRecord> activeRecords = List.of(
+                // 1,000,000 INR * 0.0120 = 12,000.00 USD -> [0, 30000)
+                new SalaryRecord(in1, new BigDecimal("1000000.00"), "INR", asOfDate.minusMonths(3), null, "Base"),
+                // 85,000.00 USD -> [60000, 90000)
+                new SalaryRecord(us1, new BigDecimal("85000.00"), "USD", asOfDate.minusMonths(3), null, "Base"),
+                // 160,000.00 USD -> [150000, null)
+                new SalaryRecord(us2, new BigDecimal("160000.00"), "USD", asOfDate.minusMonths(3), null, "Base"));
+
+        when(salaryRecordRepository.findActiveRecordsAsOf(asOfDate, false)).thenReturn(activeRecords);
+
+        var report = reportService.distributionReport(
+                asOfDate, false, null, new BigDecimal("30000"), null);
+
+        assertEquals(3, report.totalHeadcount());
+        assertEquals(6, report.organizationBands().size());
+        assertEquals(1, report.organizationBands().get(0).headcount()); // $0 - $30,000
+        assertEquals(1, report.organizationBands().get(2).headcount()); // $60,000 - $90,000
+        assertEquals(1, report.organizationBands().get(5).headcount()); // $150,000+
+
+        assertEquals(2, report.countryDistributions().size());
+        var inDistribution = report.countryDistributions().get(0);
+        assertEquals("IN", inDistribution.countryCode());
+        assertEquals(1, inDistribution.totalHeadcount());
+        assertEquals(1, inDistribution.bands().get(0).headcount());
+
+        var usDistribution = report.countryDistributions().get(1);
+        assertEquals("US", usDistribution.countryCode());
+        assertEquals(2, usDistribution.totalHeadcount());
+        assertEquals(1, usDistribution.bands().get(2).headcount());
+        assertEquals(1, usDistribution.bands().get(5).headcount());
+    }
 }

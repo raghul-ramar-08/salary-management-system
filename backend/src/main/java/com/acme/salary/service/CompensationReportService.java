@@ -4,6 +4,9 @@ import com.acme.salary.dto.CountrySalaryReportResponse;
 import com.acme.salary.dto.CountrySalaryReportResponse.CountrySalaryMetrics;
 import com.acme.salary.dto.DepartmentSalaryReportResponse;
 import com.acme.salary.dto.DepartmentSalaryReportResponse.DepartmentSalaryMetrics;
+import com.acme.salary.dto.SalaryDistributionReportResponse;
+import com.acme.salary.dto.SalaryDistributionReportResponse.CountryBandDistribution;
+import com.acme.salary.dto.SalaryDistributionReportResponse.SalaryBandBucket;
 import com.acme.salary.entity.SalaryRecord;
 import com.acme.salary.repository.SalaryRecordRepository;
 import com.acme.salary.validation.SupportedCompensationCatalog;
@@ -112,6 +115,132 @@ public class CompensationReportService {
                 average(normalizedAmounts),
                 median(normalizedAmounts),
                 sum(normalizedAmounts));
+    }
+
+    public SalaryDistributionReportResponse distributionReport(
+            LocalDate asOfDate,
+            boolean includeInactive,
+            String countryCode,
+            BigDecimal bandSize,
+            List<BigDecimal> customThresholds) {
+        LocalDate effectiveAsOf = asOfDate != null ? asOfDate : LocalDate.now();
+        String normalizedCountry = (countryCode == null || countryCode.isBlank())
+                ? null
+                : SupportedCompensationCatalog.requireSupportedCountry(countryCode);
+
+        BigDecimal effectiveBandSize = bandSize != null ? bandSize : new BigDecimal("25000.00");
+        if (effectiveBandSize.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Salary band size must be greater than zero");
+        }
+
+        List<BandRange> bandRanges = buildBandRanges(effectiveBandSize, customThresholds);
+        List<SalaryRecord> activeRecords = salaryRecordRepository.findActiveRecordsAsOf(effectiveAsOf, includeInactive);
+        if (normalizedCountry != null) {
+            activeRecords = activeRecords.stream()
+                    .filter(sr -> normalizedCountry.equalsIgnoreCase(sr.getEmployee().getCountryCode()))
+                    .toList();
+        }
+
+        List<BigDecimal> orgUsdAmounts = activeRecords.stream()
+                .map(this::toReportingCurrency)
+                .toList();
+        List<SalaryBandBucket> organizationBands = bucketize(orgUsdAmounts, bandRanges);
+
+        Map<String, List<SalaryRecord>> byCountry = activeRecords.stream()
+                .collect(Collectors.groupingBy(sr -> sr.getEmployee().getCountryCode().toUpperCase(Locale.ROOT)));
+
+        List<CountryBandDistribution> countryDistributions = byCountry.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> {
+                    List<BigDecimal> countryUsd = entry.getValue().stream()
+                            .map(this::toReportingCurrency)
+                            .toList();
+                    return new CountryBandDistribution(
+                            entry.getKey(),
+                            countryUsd.size(),
+                            bucketize(countryUsd, bandRanges));
+                })
+                .toList();
+
+        return new SalaryDistributionReportResponse(
+                effectiveAsOf,
+                includeInactive,
+                SupportedCompensationCatalog.REPORTING_CURRENCY,
+                RATE_BASIS_DISCLOSURE,
+                normalizedCountry,
+                effectiveBandSize.setScale(2, RoundingMode.HALF_UP),
+                activeRecords.size(),
+                organizationBands,
+                countryDistributions);
+    }
+
+    private List<BandRange> buildBandRanges(BigDecimal bandSize, List<BigDecimal> customThresholds) {
+        if (customThresholds != null && !customThresholds.isEmpty()) {
+            List<BigDecimal> sorted = customThresholds.stream()
+                    .map(v -> v.setScale(2, RoundingMode.HALF_UP))
+                    .toList();
+            for (int i = 0; i < sorted.size(); i++) {
+                if (sorted.get(i).compareTo(BigDecimal.ZERO) < 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Salary band thresholds must be non-negative");
+                }
+                if (i > 0 && sorted.get(i).compareTo(sorted.get(i - 1)) <= 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Salary band thresholds must be strictly increasing");
+                }
+            }
+            java.util.ArrayList<BandRange> ranges = new java.util.ArrayList<>();
+            for (int i = 0; i < sorted.size(); i++) {
+                BigDecimal min = sorted.get(i);
+                BigDecimal max = (i + 1 < sorted.size()) ? sorted.get(i + 1) : null;
+                ranges.add(new BandRange(formatBandLabel(min, max), min, max));
+            }
+            return ranges;
+        }
+
+        java.util.ArrayList<BandRange> ranges = new java.util.ArrayList<>();
+        int bucketCount = 5;
+        BigDecimal scaledStep = bandSize.setScale(2, RoundingMode.HALF_UP);
+        for (int i = 0; i < bucketCount; i++) {
+            BigDecimal min = scaledStep.multiply(BigDecimal.valueOf(i));
+            BigDecimal max = scaledStep.multiply(BigDecimal.valueOf(i + 1));
+            ranges.add(new BandRange(formatBandLabel(min, max), min, max));
+        }
+        BigDecimal topMin = scaledStep.multiply(BigDecimal.valueOf(bucketCount));
+        ranges.add(new BandRange(formatBandLabel(topMin, null), topMin, null));
+        return ranges;
+    }
+
+    private List<SalaryBandBucket> bucketize(List<BigDecimal> amounts, List<BandRange> bandRanges) {
+        long total = amounts.size();
+        return bandRanges.stream()
+                .map(range -> {
+                    long count = amounts.stream()
+                            .filter(amount -> amount.compareTo(range.minInclusive()) >= 0
+                                    && (range.maxExclusive() == null || amount.compareTo(range.maxExclusive()) < 0))
+                            .count();
+                    BigDecimal pct = total == 0
+                            ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                            : BigDecimal.valueOf(count * 100)
+                                    .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
+                    return new SalaryBandBucket(
+                            range.label(),
+                            range.minInclusive(),
+                            range.maxExclusive(),
+                            count,
+                            pct);
+                })
+                .toList();
+    }
+
+    private String formatBandLabel(BigDecimal min, BigDecimal max) {
+        if (max == null) {
+            return "$%,d+".formatted(min.longValue());
+        }
+        return "$%,d – $%,d".formatted(min.longValue(), max.longValue());
+    }
+
+    private record BandRange(String label, BigDecimal minInclusive, BigDecimal maxExclusive) {
     }
 
     private CountrySalaryMetrics buildCountryMetrics(String countryCode, List<SalaryRecord> records) {
