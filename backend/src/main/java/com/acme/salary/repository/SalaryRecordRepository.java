@@ -47,4 +47,16 @@ public interface SalaryRecordRepository extends JpaRepository<SalaryRecord, Long
     List<SalaryRecord> findByEmployee_IdOrderByEffectiveDateAsc(Long employeeId);
 
     boolean existsByEmployee_IdAndEffectiveDate(Long employeeId, LocalDate effectiveDate);
+
+    @EntityGraph(attributePaths = "employee")
+    @Query("""
+            select sr from SalaryRecord sr
+            join sr.employee e
+            where sr.effectiveDate <= :asOfDate
+              and (sr.effectiveTo is null or sr.effectiveTo >= :asOfDate)
+              and (:includeInactive = true or e.status = com.acme.salary.entity.Employee$EmploymentStatus.ACTIVE)
+            """)
+    List<SalaryRecord> findActiveRecordsAsOf(
+            @Param("asOfDate") LocalDate asOfDate,
+            @Param("includeInactive") boolean includeInactive);
 }
