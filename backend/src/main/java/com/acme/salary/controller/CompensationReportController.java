@@ -1,6 +1,7 @@
 package com.acme.salary.controller;
 
 import com.acme.salary.dto.CountrySalaryReportResponse;
+import com.acme.salary.dto.DepartmentSalaryReportResponse;
 import com.acme.salary.service.CompensationReportService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,5 +25,12 @@ public class CompensationReportController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate,
             @RequestParam(defaultValue = "false") boolean includeInactive) {
         return reportService.countryReport(asOfDate, includeInactive);
+    }
+
+    @GetMapping({"/departments", "/salary/by-department"})
+    public DepartmentSalaryReportResponse departmentReport(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate,
+            @RequestParam(defaultValue = "false") boolean includeInactive) {
+        return reportService.departmentReport(asOfDate, includeInactive);
     }
 }

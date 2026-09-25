@@ -81,4 +81,51 @@ class CompensationReportServiceTest {
         assertEquals(new BigDecimal("18000.00"), inMetrics.medianSalaryReportingCurrency());
         assertEquals(new BigDecimal("36000.00"), inMetrics.totalPayrollReportingCurrency());
     }
+
+    @Test
+    void departmentReportNormalizesMultiCurrencyDepartmentsAndCalculatesMedianAndPayroll() {
+        LocalDate asOfDate = LocalDate.of(2026, 9, 26);
+
+        Employee engUs = new Employee("ACME-00001", "Avery", "Shah", "US", "Engineering",
+                "Engineer", "L3", LocalDate.of(2022, 1, 1), EmploymentStatus.ACTIVE);
+        Employee engGb = new Employee("ACME-00002", "Jordan", "Patel", "GB", "Engineering",
+                "Engineer", "L4", LocalDate.of(2021, 1, 1), EmploymentStatus.ACTIVE);
+        Employee engDe = new Employee("ACME-00003", "Morgan", "Kim", "DE", "Engineering",
+                "Lead", "L5", LocalDate.of(2020, 1, 1), EmploymentStatus.ACTIVE);
+        Employee salesSg = new Employee("ACME-00004", "Sam", "Kumar", "SG", "Sales",
+                "Specialist", "L2", LocalDate.of(2023, 1, 1), EmploymentStatus.ACTIVE);
+
+        List<SalaryRecord> activeRecords = List.of(
+                // 100,000 USD -> 100,000.00 USD
+                new SalaryRecord(engUs, new BigDecimal("100000.00"), "USD", asOfDate.minusMonths(2), null, "Base"),
+                // 50,000 GBP * 1.2700 = 63,500.00 USD
+                new SalaryRecord(engGb, new BigDecimal("50000.00"), "GBP", asOfDate.minusMonths(2), null, "Base"),
+                // 75,000 EUR * 1.0800 = 81,000.00 USD
+                new SalaryRecord(engDe, new BigDecimal("75000.00"), "EUR", asOfDate.minusMonths(2), null, "Base"),
+                // 80,000 SGD * 0.7400 = 59,200.00 USD
+                new SalaryRecord(salesSg, new BigDecimal("80000.00"), "SGD", asOfDate.minusMonths(2), null, "Base"));
+
+        when(salaryRecordRepository.findActiveRecordsAsOf(asOfDate, false)).thenReturn(activeRecords);
+
+        var report = reportService.departmentReport(asOfDate, false);
+
+        assertEquals(4, report.totalHeadcount());
+        // Total payroll = 100,000 + 63,500 + 81,000 + 59,200 = 303,700.00 USD
+        assertEquals(new BigDecimal("303700.00"), report.totalPayrollReportingCurrency());
+        assertEquals(2, report.departments().size());
+
+        var engineering = report.departments().get(0);
+        assertEquals("Engineering", engineering.department());
+        assertEquals(3, engineering.headcount());
+        // Sorted USD for Engineering: [63,500.00, 81,000.00, 100,000.00]
+        // Total = 244,500.00, Average = 81,500.00, Median = 81,000.00
+        assertEquals(new BigDecimal("244500.00"), engineering.totalPayrollReportingCurrency());
+        assertEquals(new BigDecimal("81500.00"), engineering.averageSalaryReportingCurrency());
+        assertEquals(new BigDecimal("81000.00"), engineering.medianSalaryReportingCurrency());
+
+        var sales = report.departments().get(1);
+        assertEquals("Sales", sales.department());
+        assertEquals(1, sales.headcount());
+        assertEquals(new BigDecimal("59200.00"), sales.totalPayrollReportingCurrency());
+    }
 }

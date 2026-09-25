@@ -2,6 +2,8 @@ package com.acme.salary.service;
 
 import com.acme.salary.dto.CountrySalaryReportResponse;
 import com.acme.salary.dto.CountrySalaryReportResponse.CountrySalaryMetrics;
+import com.acme.salary.dto.DepartmentSalaryReportResponse;
+import com.acme.salary.dto.DepartmentSalaryReportResponse.DepartmentSalaryMetrics;
 import com.acme.salary.entity.SalaryRecord;
 import com.acme.salary.repository.SalaryRecordRepository;
 import com.acme.salary.validation.SupportedCompensationCatalog;
@@ -67,6 +69,49 @@ public class CompensationReportService {
                 overallAverageUsd,
                 overallMedianUsd,
                 countryMetrics);
+    }
+
+    public DepartmentSalaryReportResponse departmentReport(LocalDate asOfDate, boolean includeInactive) {
+        LocalDate effectiveAsOf = asOfDate != null ? asOfDate : LocalDate.now();
+        List<SalaryRecord> activeRecords = salaryRecordRepository.findActiveRecordsAsOf(effectiveAsOf, includeInactive);
+
+        Map<String, List<SalaryRecord>> byDepartment = activeRecords.stream()
+                .collect(Collectors.groupingBy(sr -> sr.getEmployee().getDepartment().trim()));
+
+        List<DepartmentSalaryMetrics> departmentMetrics = byDepartment.entrySet().stream()
+                .map(entry -> buildDepartmentMetrics(entry.getKey(), entry.getValue()))
+                .sorted(Comparator.comparing(DepartmentSalaryMetrics::totalPayrollReportingCurrency).reversed()
+                        .thenComparing(DepartmentSalaryMetrics::department))
+                .toList();
+
+        List<BigDecimal> allNormalizedAmounts = activeRecords.stream()
+                .map(this::toReportingCurrency)
+                .sorted()
+                .toList();
+
+        return new DepartmentSalaryReportResponse(
+                effectiveAsOf,
+                includeInactive,
+                SupportedCompensationCatalog.REPORTING_CURRENCY,
+                RATE_BASIS_DISCLOSURE,
+                SupportedCompensationCatalog.FIXED_USD_RATES,
+                activeRecords.size(),
+                sum(allNormalizedAmounts),
+                departmentMetrics);
+    }
+
+    private DepartmentSalaryMetrics buildDepartmentMetrics(String department, List<SalaryRecord> records) {
+        List<BigDecimal> normalizedAmounts = records.stream()
+                .map(this::toReportingCurrency)
+                .sorted()
+                .toList();
+
+        return new DepartmentSalaryMetrics(
+                department,
+                records.size(),
+                average(normalizedAmounts),
+                median(normalizedAmounts),
+                sum(normalizedAmounts));
     }
 
     private CountrySalaryMetrics buildCountryMetrics(String countryCode, List<SalaryRecord> records) {
