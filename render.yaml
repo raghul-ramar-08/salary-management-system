@@ -1,0 +1,28 @@
+databases:
+  - name: acme-salary-db
+    databaseName: salarydb
+    user: salary
+    plan: free
+
+services:
+  - type: web
+    name: acme-salary-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: acme-salary-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: acme-salary-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: acme-salary-db
+          property: password
