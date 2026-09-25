@@ -10,7 +10,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { debounceTime, Subject } from 'rxjs';
 import { Employee, EmployeeSearch } from './models/employee';
 import { EmployeeApiService } from './services/employee-api.service';
@@ -194,9 +194,9 @@ import { EmployeeApiService } from './services/employee-api.service';
                 <div class="employee-cell">
                   <span class="avatar">{{ employee.firstName[0] }}{{ employee.lastName[0] }}</span>
                   <span>
-                  <a class="profile-link" [routerLink]="['/employees', employee.id]">
-                    {{ employee.firstName }} {{ employee.lastName }}
-                  </a>
+                    <a class="profile-link" [routerLink]="['/employees', employee.id]" (click)="$event.stopPropagation()">
+                      {{ employee.firstName }} {{ employee.lastName }}
+                    </a>
                     <small>{{ employee.employeeNumber }}</small>
                   </span>
                 </div>
@@ -236,7 +236,9 @@ import { EmployeeApiService } from './services/employee-api.service';
             </ng-container>
 
             <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns"
+                class="clickable-row"
+                (click)="goToProfile(row.id)"></tr>
             <tr class="mat-row" *matNoDataRow>
               <td class="mat-cell empty-cell" [attr.colspan]="displayedColumns.length">
                 {{ loading ? 'Loading employees…' : 'No employees match these filters.' }}
@@ -301,6 +303,8 @@ import { EmployeeApiService } from './services/employee-api.service';
     .secondary-text { color: #899991; }
     .status { display: inline-block; border-radius: 16px; padding: 5px 9px; background: #e8f3eb; color: #417553; font-size: 10px; font-weight: 600; }
     .status.inactive { background: #f1f2ef; color: #79837d; }
+    .clickable-row { cursor: pointer; transition: background-color .15s ease-in-out; }
+    .clickable-row:hover { background-color: #f7faf8; }
     .empty-cell { height: 90px; text-align: center; color: #7f9087 !important; }
     .error-state { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 20px; color: #a23434; font-size: 13px; }
     .data-note { margin: 12px 2px; color: #8a9891; font-size: 10px; }
@@ -315,6 +319,7 @@ import { EmployeeApiService } from './services/employee-api.service';
 })
 export class EmployeeDirectoryComponent implements OnInit {
   private readonly api = inject(EmployeeApiService);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly filterChanges = new Subject<void>();
 
@@ -462,6 +467,10 @@ export class EmployeeDirectoryComponent implements OnInit {
 
   countryName(code: string): string {
     return this.countryNames[code] ?? code;
+  }
+
+  goToProfile(id: number | string): void {
+    this.router.navigate(['/employees', id]);
   }
 
   private searchCriteria(): EmployeeSearch {

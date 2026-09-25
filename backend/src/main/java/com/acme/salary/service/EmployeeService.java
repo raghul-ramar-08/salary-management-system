@@ -49,11 +49,32 @@ public class EmployeeService {
                 .map(EmployeeResponse::from);
     }
 
+    public EmployeeProfileResponse profile(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Employee identifier is required");
+        }
+        String trimmed = identifier.trim();
+        try {
+            Long numericId = Long.parseLong(trimmed);
+            return profile(numericId);
+        } catch (NumberFormatException ignored) {
+            // Not a numeric ID; fall back to employee number
+        }
+        Employee employee = employeeRepository.findByEmployeeNumberIgnoreCase(trimmed)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found"));
+        return buildProfile(employee, employee.getId());
+    }
+
     public EmployeeProfileResponse profile(Long employeeId) {
         var employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found"));
-        List<SalaryRecordResponse> history = salaryRecordRepository
-                .findByEmployee_IdOrderByEffectiveDateDescRecordedAtDesc(employeeId)
+        return buildProfile(employee, employeeId);
+    }
+
+    private EmployeeProfileResponse buildProfile(Employee employee, Long employeeId) {
+        List<SalaryRecordResponse> history = (employeeId != null
+                ? salaryRecordRepository.findByEmployee_IdOrderByEffectiveDateDescRecordedAtDesc(employeeId)
+                : salaryRecordRepository.findByEmployee_EmployeeNumberIgnoreCaseOrderByEffectiveDateDescRecordedAtDesc(employee.getEmployeeNumber()))
                 .stream().map(SalaryRecordResponse::from).toList();
         LocalDate today = LocalDate.now();
         SalaryRecordResponse currentSalary = history.stream()

@@ -66,8 +66,8 @@ public class EmployeeController {
     }
 
     @GetMapping("/{id}")
-    public EmployeeProfileResponse getEmployee(@PathVariable("id") Long employeeId) {
-        return employeeService.profile(employeeId);
+    public EmployeeProfileResponse getEmployee(@PathVariable("id") String idOrNumber) {
+        return employeeService.profile(idOrNumber);
     }
 
     @PostMapping

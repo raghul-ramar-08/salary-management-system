@@ -98,6 +98,24 @@ class EmployeeServiceTest {
     }
 
     @Test
+    void profileCanBeLookedUpByEmployeeNumber() {
+        LocalDate today = LocalDate.now();
+        Employee employee = new Employee("ACME-00001", "Avery", "Shah", "US", "Engineering",
+                "Software Engineer", "L2", LocalDate.of(2022, 4, 1), EmploymentStatus.ACTIVE);
+        var current = new SalaryRecord(employee,
+                new BigDecimal("90000.00"), "USD", today, null, "Current salary");
+        when(employeeRepository.findByEmployeeNumberIgnoreCase("ACME-00001")).thenReturn(Optional.of(employee));
+        when(salaryRecordRepository.findByEmployee_EmployeeNumberIgnoreCaseOrderByEffectiveDateDescRecordedAtDesc("ACME-00001"))
+                .thenReturn(List.of(current));
+
+        var profile = employeeService.profile("ACME-00001");
+
+        assertEquals("ACME-00001", profile.employee().employeeNumber());
+        assertEquals(new BigDecimal("90000.00"), profile.currentSalary().amount());
+        assertEquals(1, profile.salaryHistory().size());
+    }
+
+    @Test
     void profileHasNoCurrentSalaryWhenAllRecordsAreFutureDated() {
         Employee employee = new Employee("ACME-00002", "Jordan", "Patel", "IN", "Finance",
                 "Analyst", "L1", LocalDate.of(2024, 1, 1), EmploymentStatus.ACTIVE);

@@ -35,7 +35,7 @@ export class EmployeeApiService {
     return this.http.get<EmployeePage>(this.endpoint, { params });
   }
 
-  profile(id: number): Observable<EmployeeProfile> {
+  profile(id: number | string): Observable<EmployeeProfile> {
     return this.http.get<EmployeeProfile>(`${this.endpoint}/${id}`);
   }
 

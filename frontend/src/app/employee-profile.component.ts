@@ -209,17 +209,22 @@ export class EmployeeProfileComponent implements OnInit {
   savingSalary = false;
   salaryFeedback = '';
   salaryError = false;
-  private employeeId = 0;
+  private employeeIdentifier: string | number = '';
 
   ngOnInit(): void {
-    const id = Number(this.route.snapshot.paramMap.get('id'));
-    if (!Number.isInteger(id) || id <= 0) {
-      this.loading = false;
-      this.errorMessage = 'Employee profile was not found.';
-      return;
-    }
-    this.employeeId = id;
-    this.loadProfile();
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
+      const id = params.get('id');
+      if (!id || !id.trim()) {
+        this.loading = false;
+        this.profile = null;
+        this.errorMessage = 'Employee profile was not found.';
+        return;
+      }
+      this.employeeIdentifier = id.trim();
+      this.loading = true;
+      this.errorMessage = '';
+      this.loadProfile();
+    });
   }
 
   countryName(code: string): string {
@@ -274,7 +279,7 @@ export class EmployeeProfileComponent implements OnInit {
   }
 
   private loadProfile(): void {
-    this.api.profile(this.employeeId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.api.profile(this.employeeIdentifier).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: profile => {
         this.profile = profile;
         this.loading = false;
