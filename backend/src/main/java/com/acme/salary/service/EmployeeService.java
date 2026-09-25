@@ -9,6 +9,7 @@ import com.acme.salary.entity.Employee.EmploymentStatus;
 import com.acme.salary.entity.SalaryRecord;
 import com.acme.salary.repository.EmployeeRepository;
 import com.acme.salary.repository.SalaryRecordRepository;
+import com.acme.salary.validation.SupportedCompensationCatalog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -71,7 +72,11 @@ public class EmployeeService {
                     "An employee with number " + normalizedEmployeeNumber + " already exists");
         }
 
-        String normalizedCountryCode = request.countryCode().trim().toUpperCase(Locale.ROOT);
+        String normalizedCountryCode = SupportedCompensationCatalog.requireSupportedCountry(request.countryCode());
+        var salaryRequest = request.initialSalary();
+        var validatedAmount = SupportedCompensationCatalog.requirePositiveSalary(salaryRequest.amount());
+        String normalizedCurrencyCode = SupportedCompensationCatalog.requireSupportedCurrency(salaryRequest.currencyCode());
+
         EmploymentStatus status = request.status() != null ? request.status() : EmploymentStatus.ACTIVE;
 
         Employee employee = new Employee(
@@ -86,11 +91,10 @@ public class EmployeeService {
                 status);
         Employee savedEmployee = employeeRepository.save(employee);
 
-        var salaryRequest = request.initialSalary();
         SalaryRecord initialRecord = new SalaryRecord(
                 savedEmployee,
-                salaryRequest.amount(),
-                salaryRequest.currencyCode().trim().toUpperCase(Locale.ROOT),
+                validatedAmount,
+                normalizedCurrencyCode,
                 salaryRequest.effectiveDate(),
                 null,
                 salaryRequest.changeReason().trim());

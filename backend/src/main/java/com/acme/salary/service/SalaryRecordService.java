@@ -6,6 +6,7 @@ import com.acme.salary.entity.Employee;
 import com.acme.salary.entity.SalaryRecord;
 import com.acme.salary.repository.EmployeeRepository;
 import com.acme.salary.repository.SalaryRecordRepository;
+import com.acme.salary.validation.SupportedCompensationCatalog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -77,6 +78,8 @@ public class SalaryRecordService {
 
     @Transactional
     public SalaryRecordResponse addRecord(String employeeNumber, SalaryRecordRequest request) {
+        var validatedAmount = SupportedCompensationCatalog.requirePositiveSalary(request.amount());
+        String normalizedCurrency = SupportedCompensationCatalog.requireSupportedCurrency(request.currencyCode());
         String normalizedNumber = normalizeEmployeeNumber(employeeNumber);
         Employee employee = employeeRepository.findByEmployeeNumberIgnoreCase(normalizedNumber)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found"));
@@ -95,8 +98,8 @@ public class SalaryRecordService {
 
         if (previous != null) previous.setEffectiveTo(request.effectiveDate().minusDays(1));
         LocalDate effectiveTo = next == null ? null : next.getEffectiveDate().minusDays(1);
-        SalaryRecord record = new SalaryRecord(employee, request.amount(),
-                request.currencyCode().toUpperCase(Locale.ROOT), request.effectiveDate(), effectiveTo,
+        SalaryRecord record = new SalaryRecord(employee, validatedAmount,
+                normalizedCurrency, request.effectiveDate(), effectiveTo,
                 request.changeReason().trim());
         SalaryRecord saved = salaryRecordRepository.save(record);
         // Salary amounts are deliberately excluded from logs because compensation is sensitive data.
