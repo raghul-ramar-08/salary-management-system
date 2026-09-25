@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { take } from 'rxjs';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { SalaryApiService } from './features/salary-records/salary-api.service';
 import { SalaryRecord } from './features/salary-records/salary-record';
@@ -279,7 +280,7 @@ export class EmployeeProfileComponent implements OnInit {
   }
 
   private loadProfile(): void {
-    this.api.profile(this.employeeIdentifier).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.api.profile(this.employeeIdentifier).pipe(take(1)).subscribe({
       next: profile => {
         this.profile = profile;
         this.loading = false;
