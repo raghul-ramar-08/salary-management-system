@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.LocalDate;
 import java.util.Map;
 
@@ -23,6 +26,7 @@ import java.util.Map;
 @RequestMapping("/api/salary-records")
 @Validated
 public class SalaryRecordSearchController {
+    private static final Logger log = LoggerFactory.getLogger(SalaryRecordSearchController.class);
     private static final Map<String, String> SORTABLE_FIELDS = Map.of(
             "employeeNumber", "employee.employeeNumber",
             "department", "employee.department",
@@ -55,6 +59,8 @@ public class SalaryRecordSearchController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported sort field");
         }
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
+        log.debug("Salary record search requested: employeeNumber={}, countryCode={}, department={}, currencyCode={}, effectiveFrom={}, effectiveTo={}, currentOnly={}, page={}, size={}",
+                employeeNumber, countryCode, department, currencyCode, effectiveFrom, effectiveTo, currentOnly, page, size);
         return salaryRecordService.search(employeeNumber, countryCode, department, currencyCode,
                 effectiveFrom, effectiveTo, currentOnly, pageable);
     }
