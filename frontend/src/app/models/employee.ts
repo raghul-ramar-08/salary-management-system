@@ -32,10 +32,24 @@ export interface EmployeeSearch {
   direction: 'ASC' | 'DESC';
 }
 
-import { SalaryRecord } from '../features/salary-records/salary-record';
+import { SalaryRecord, SalaryRecordRequest } from '../features/salary-records/salary-record';
 
 export interface EmployeeProfile {
   employee: Employee;
   currentSalary: SalaryRecord | null;
   salaryHistory: SalaryRecord[];
 }
+
+export interface CreateEmployeeRequest {
+  employeeNumber: string;
+  firstName: string;
+  lastName: string;
+  countryCode: string;
+  department: string;
+  jobTitle: string;
+  jobLevel: string | null;
+  dateOfJoining: string;
+  status: EmploymentStatus;
+  initialSalary: SalaryRecordRequest;
+}
+

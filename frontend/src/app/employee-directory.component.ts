@@ -37,13 +37,107 @@ import { EmployeeApiService } from './services/employee-api.service';
         <div>
           <p class="eyebrow">EMPLOYEE DATA</p>
           <h1>Employee directory</h1>
-          <p class="subtitle">Search and browse employee profiles across ACME.</p>
+          <p class="subtitle">Search, browse, and add employee profiles across ACME.</p>
         </div>
-        <div class="headcount" aria-live="polite">
-          <strong>{{ totalEmployees | number }}</strong>
-          <span>employees</span>
+        <div class="heading-actions">
+          <div class="headcount" aria-live="polite">
+            <strong>{{ totalEmployees | number }}</strong>
+            <span>employees</span>
+          </div>
+          <button type="button" class="primary-btn" (click)="showCreateForm = !showCreateForm">
+            {{ showCreateForm ? 'Close form' : '+ Add employee' }}
+          </button>
         </div>
       </header>
+
+      <section *ngIf="showCreateForm" class="create-card" aria-label="Add new employee">
+        <div class="create-header">
+          <div>
+            <h2>Add employee with initial salary</h2>
+            <p>Creates both the employee record and their initial compensation period in one transaction.</p>
+          </div>
+        </div>
+        <form class="create-grid" (ngSubmit)="createEmployee()">
+          <label>
+            <span>Employee ID *</span>
+            <input type="text" name="employeeNumber" required maxlength="24" [(ngModel)]="draft.employeeNumber" placeholder="ACME-10001">
+          </label>
+          <label>
+            <span>First name *</span>
+            <input type="text" name="firstName" required maxlength="80" [(ngModel)]="draft.firstName" placeholder="Priya">
+          </label>
+          <label>
+            <span>Last name *</span>
+            <input type="text" name="lastName" required maxlength="80" [(ngModel)]="draft.lastName" placeholder="Nair">
+          </label>
+          <label>
+            <span>Country *</span>
+            <select name="countryCode" required [(ngModel)]="draft.countryCode" (ngModelChange)="onDraftCountryChange($event)">
+              <option value="US">United States (US)</option>
+              <option value="IN">India (IN)</option>
+              <option value="GB">United Kingdom (GB)</option>
+              <option value="DE">Germany (DE)</option>
+              <option value="SG">Singapore (SG)</option>
+            </select>
+          </label>
+          <label>
+            <span>Department *</span>
+            <select name="department" required [(ngModel)]="draft.department">
+              <option *ngFor="let item of departments" [value]="item">{{ item }}</option>
+            </select>
+          </label>
+          <label>
+            <span>Job title *</span>
+            <input type="text" name="jobTitle" required maxlength="120" [(ngModel)]="draft.jobTitle" placeholder="Senior Software Engineer">
+          </label>
+          <label>
+            <span>Job level</span>
+            <input type="text" name="jobLevel" maxlength="40" [(ngModel)]="draft.jobLevel" placeholder="L4">
+          </label>
+          <label>
+            <span>Date of joining *</span>
+            <input type="date" name="dateOfJoining" required [(ngModel)]="draft.dateOfJoining">
+          </label>
+          <label>
+            <span>Status *</span>
+            <select name="status" required [(ngModel)]="draft.status">
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </label>
+          <label>
+            <span>Initial annual salary *</span>
+            <input type="number" name="salaryAmount" required min="0.01" step="0.01" [(ngModel)]="draft.salaryAmount" placeholder="115000.00">
+          </label>
+          <label>
+            <span>Currency *</span>
+            <select name="currencyCode" required [(ngModel)]="draft.currencyCode">
+              <option value="USD">USD</option>
+              <option value="INR">INR</option>
+              <option value="GBP">GBP</option>
+              <option value="EUR">EUR</option>
+              <option value="SGD">SGD</option>
+            </select>
+          </label>
+          <label>
+            <span>Salary effective date *</span>
+            <input type="date" name="salaryEffectiveDate" required [(ngModel)]="draft.salaryEffectiveDate">
+          </label>
+          <label class="span-two">
+            <span>Salary change reason *</span>
+            <input type="text" name="changeReason" required maxlength="240" [(ngModel)]="draft.changeReason" placeholder="Initial hire compensation">
+          </label>
+          <div class="create-actions">
+            <button type="submit" class="primary-btn" [disabled]="creating">
+              {{ creating ? 'Saving…' : 'Create employee' }}
+            </button>
+          </div>
+        </form>
+        <p *ngIf="createFeedback" class="create-feedback" [class.error]="createError">
+          {{ createFeedback }}
+          <a *ngIf="createdEmployeeId" [routerLink]="['/employees', createdEmployeeId]">View profile →</a>
+        </p>
+      </section>
 
       <section class="directory-card" aria-label="Employee directory">
         <div class="filter-row">
@@ -174,6 +268,20 @@ import { EmployeeApiService } from './services/employee-api.service';
     .headcount { display: grid; justify-items: end; gap: 2px; }
     .headcount strong { font-size: 23px; }
     .headcount span { color: #71837b; font-size: 11px; }
+    .heading-actions { display: flex; align-items: center; gap: 18px; }
+    .primary-btn { height: 38px; padding: 0 16px; border: 0; border-radius: 8px; background: #173f36; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .primary-btn:disabled { opacity: .6; cursor: default; }
+    .create-card { margin-bottom: 18px; padding: 20px 22px; border: 1px solid #e0e8e2; border-radius: 12px; background: #fff; box-shadow: 0 8px 24px #18392a0a; }
+    .create-header h2 { margin: 0; font-size: 16px; }
+    .create-header p { margin: 4px 0 16px; color: #71837b; font-size: 12px; }
+    .create-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 12px; align-items: end; }
+    .create-grid label { display: grid; gap: 5px; color: #68877b; font-size: 11px; font-weight: 600; }
+    .create-grid input, .create-grid select { height: 36px; padding: 0 10px; border: 1px solid #d2ddd6; border-radius: 8px; font-size: 12px; color: #203a32; background: #fff; }
+    .create-grid .span-two { grid-column: span 2; }
+    .create-actions { display: flex; align-items: end; }
+    .create-feedback { margin: 12px 0 0; color: #2f6b48; font-size: 12px; font-weight: 600; }
+    .create-feedback.error { color: #a23434; }
+    .create-feedback a { margin-left: 8px; color: #173f36; }
     .directory-card { overflow: hidden; border: 1px solid #e0e8e2; border-radius: 12px; background: #fff; box-shadow: 0 8px 24px #18392a0a; }
     .filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 20px 20px 4px; }
     .filter-row mat-form-field { width: 170px; }
@@ -215,6 +323,9 @@ export class EmployeeDirectoryComponent implements OnInit {
   readonly countryNames: Record<string, string> = {
     US: 'United States', IN: 'India', GB: 'United Kingdom', DE: 'Germany', SG: 'Singapore'
   };
+  private readonly defaultCurrencyByCountry: Record<string, string> = {
+    US: 'USD', IN: 'INR', GB: 'GBP', DE: 'EUR', SG: 'SGD'
+  };
 
   employees: Employee[] = [];
   query = '';
@@ -229,6 +340,13 @@ export class EmployeeDirectoryComponent implements OnInit {
   loading = false;
   errorMessage = '';
 
+  showCreateForm = false;
+  creating = false;
+  createFeedback = '';
+  createError = false;
+  createdEmployeeId: number | null = null;
+  draft = this.initialDraft();
+
   ngOnInit(): void {
     this.filterChanges.pipe(
       debounceTime(250),
@@ -238,6 +356,59 @@ export class EmployeeDirectoryComponent implements OnInit {
       this.loadEmployees();
     });
     this.loadEmployees();
+  }
+
+  onDraftCountryChange(countryCode: string): void {
+    this.draft.currencyCode = this.defaultCurrencyByCountry[countryCode] ?? 'USD';
+  }
+
+  createEmployee(): void {
+    if (!this.draft.employeeNumber.trim() || !this.draft.firstName.trim() || !this.draft.lastName.trim()
+        || !this.draft.jobTitle.trim() || !this.draft.salaryAmount || this.draft.salaryAmount <= 0
+        || !this.draft.changeReason.trim()) {
+      this.createError = true;
+      this.createFeedback = 'Fill in all required employee fields and a positive initial salary.';
+      return;
+    }
+
+    this.creating = true;
+    this.createFeedback = '';
+    this.createError = false;
+    this.createdEmployeeId = null;
+
+    this.api.create({
+      employeeNumber: this.draft.employeeNumber.trim().toUpperCase(),
+      firstName: this.draft.firstName.trim(),
+      lastName: this.draft.lastName.trim(),
+      countryCode: this.draft.countryCode,
+      department: this.draft.department,
+      jobTitle: this.draft.jobTitle.trim(),
+      jobLevel: this.draft.jobLevel.trim() || null,
+      dateOfJoining: this.draft.dateOfJoining,
+      status: this.draft.status,
+      initialSalary: {
+        amount: this.draft.salaryAmount,
+        currencyCode: this.draft.currencyCode,
+        effectiveDate: this.draft.salaryEffectiveDate,
+        changeReason: this.draft.changeReason.trim()
+      }
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: created => {
+        this.creating = false;
+        this.createdEmployeeId = created.employee.id;
+        this.createFeedback = `Created ${created.employee.firstName} ${created.employee.lastName} (${created.employee.employeeNumber}).`;
+        this.draft = this.initialDraft();
+        this.loadEmployees();
+      },
+      error: error => {
+        this.creating = false;
+        this.createError = true;
+        this.createFeedback = error?.error?.message || error?.error?.detail
+          || (error.status === 409
+            ? 'An employee with that employee ID already exists.'
+            : 'Could not create employee. Verify all fields and try again.');
+      }
+    });
   }
 
   scheduleSearch(): void {
@@ -303,6 +474,25 @@ export class EmployeeDirectoryComponent implements OnInit {
       size: this.pageSize,
       sortBy: this.sortBy,
       direction: this.direction
+    };
+  }
+
+  private initialDraft() {
+    const today = new Date().toISOString().slice(0, 10);
+    return {
+      employeeNumber: '',
+      firstName: '',
+      lastName: '',
+      countryCode: 'US',
+      department: 'Engineering',
+      jobTitle: '',
+      jobLevel: 'L2',
+      dateOfJoining: today,
+      status: 'ACTIVE' as const,
+      salaryAmount: null as number | null,
+      currencyCode: 'USD',
+      salaryEffectiveDate: today,
+      changeReason: 'Initial hire compensation'
     };
   }
 }

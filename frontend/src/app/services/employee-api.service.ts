@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { EmployeePage, EmployeeProfile, EmployeeSearch } from '../models/employee';
+import { CreateEmployeeRequest, EmployeePage, EmployeeProfile, EmployeeSearch } from '../models/employee';
 
 @Injectable({ providedIn: 'root' })
 export class EmployeeApiService {
@@ -38,4 +38,9 @@ export class EmployeeApiService {
   profile(id: number): Observable<EmployeeProfile> {
     return this.http.get<EmployeeProfile>(`${this.endpoint}/${id}`);
   }
+
+  create(request: CreateEmployeeRequest): Observable<EmployeeProfile> {
+    return this.http.post<EmployeeProfile>(this.endpoint, request);
+  }
 }
+

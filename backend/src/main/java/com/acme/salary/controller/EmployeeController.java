@@ -1,9 +1,11 @@
 package com.acme.salary.controller;
 
+import com.acme.salary.dto.CreateEmployeeRequest;
 import com.acme.salary.dto.EmployeeResponse;
 import com.acme.salary.dto.EmployeeProfileResponse;
 import com.acme.salary.entity.Employee.EmploymentStatus;
 import com.acme.salary.service.EmployeeService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.data.domain.Page;
@@ -14,8 +16,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.slf4j.Logger;
@@ -63,5 +68,12 @@ public class EmployeeController {
     @GetMapping("/{id}")
     public EmployeeProfileResponse getEmployee(@PathVariable("id") Long employeeId) {
         return employeeService.profile(employeeId);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public EmployeeProfileResponse createEmployee(@Valid @RequestBody CreateEmployeeRequest request) {
+        log.debug("Create employee request started: employeeNumber={}", request.employeeNumber());
+        return employeeService.create(request);
     }
 }

@@ -1,5 +1,7 @@
 package com.acme.salary.service;
 
+import com.acme.salary.dto.CreateEmployeeRequest;
+import com.acme.salary.dto.SalaryRecordRequest;
 import com.acme.salary.entity.Employee;
 import com.acme.salary.entity.Employee.EmploymentStatus;
 import com.acme.salary.entity.SalaryRecord;
@@ -7,6 +9,7 @@ import com.acme.salary.repository.EmployeeRepository;
 import com.acme.salary.repository.SalaryRecordRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,12 +23,16 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @ExtendWith(MockitoExtension.class)
@@ -133,5 +140,75 @@ class EmployeeServiceTest {
                 () -> employeeService.profile(999L));
 
         assertEquals(NOT_FOUND, error.getStatusCode());
+    }
+
+    @Test
+    void createSavesEmployeeAndInitialSalaryTransactionally() {
+        LocalDate today = LocalDate.now();
+        var request = new CreateEmployeeRequest(
+                " acme-10001 ",
+                " Priya ",
+                " Nair ",
+                " in ",
+                " Engineering ",
+                " Senior Software Engineer ",
+                " L4 ",
+                today.minusDays(5),
+                EmploymentStatus.ACTIVE,
+                new SalaryRecordRequest(
+                        new BigDecimal("1850000.00"),
+                        " inr ",
+                        today,
+                        " Initial hire compensation "));
+
+        when(employeeRepository.existsByEmployeeNumberIgnoreCase("ACME-10001")).thenReturn(false);
+        when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(salaryRecordRepository.save(any(SalaryRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var created = employeeService.create(request);
+
+        ArgumentCaptor<Employee> employeeCaptor = ArgumentCaptor.forClass(Employee.class);
+        verify(employeeRepository).save(employeeCaptor.capture());
+        assertEquals("ACME-10001", employeeCaptor.getValue().getEmployeeNumber());
+        assertEquals("IN", employeeCaptor.getValue().getCountryCode());
+        assertEquals("Priya", employeeCaptor.getValue().getFirstName());
+
+        ArgumentCaptor<SalaryRecord> salaryCaptor = ArgumentCaptor.forClass(SalaryRecord.class);
+        verify(salaryRecordRepository).save(salaryCaptor.capture());
+        assertEquals("INR", salaryCaptor.getValue().getCurrencyCode());
+        assertEquals(new BigDecimal("1850000.00"), salaryCaptor.getValue().getAmount());
+        assertNull(salaryCaptor.getValue().getEffectiveTo());
+
+        assertNotNull(created.currentSalary());
+        assertEquals(1, created.salaryHistory().size());
+    }
+
+    @Test
+    void createRejectsDuplicateEmployeeNumberWithConflict() {
+        LocalDate today = LocalDate.now();
+        var request = new CreateEmployeeRequest(
+                "acme-00001",
+                "Avery",
+                "Shah",
+                "US",
+                "Engineering",
+                "Software Engineer",
+                "L2",
+                today,
+                EmploymentStatus.ACTIVE,
+                new SalaryRecordRequest(
+                        new BigDecimal("95000.00"),
+                        "USD",
+                        today,
+                        "Initial hire"));
+
+        when(employeeRepository.existsByEmployeeNumberIgnoreCase("ACME-00001")).thenReturn(true);
+
+        var error = assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> employeeService.create(request));
+
+        assertEquals(CONFLICT, error.getStatusCode());
+        verify(employeeRepository, never()).save(any(Employee.class));
+        verify(salaryRecordRepository, never()).save(any(SalaryRecord.class));
     }
 }
