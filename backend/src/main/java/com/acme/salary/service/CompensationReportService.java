@@ -2,6 +2,9 @@ package com.acme.salary.service;
 
 import com.acme.salary.dto.CountrySalaryReportResponse;
 import com.acme.salary.dto.CountrySalaryReportResponse.CountrySalaryMetrics;
+import com.acme.salary.dto.DepartmentSalaryExtremesReportResponse;
+import com.acme.salary.dto.DepartmentSalaryExtremesReportResponse.DepartmentExtremes;
+import com.acme.salary.dto.DepartmentSalaryExtremesReportResponse.EmployeeCompensationSnapshot;
 import com.acme.salary.dto.DepartmentSalaryReportResponse;
 import com.acme.salary.dto.DepartmentSalaryReportResponse.DepartmentSalaryMetrics;
 import com.acme.salary.dto.SalaryDistributionReportResponse;
@@ -172,6 +175,83 @@ public class CompensationReportService {
                 activeRecords.size(),
                 organizationBands,
                 countryDistributions);
+    }
+
+    public DepartmentSalaryExtremesReportResponse departmentExtremesReport(
+            LocalDate asOfDate,
+            boolean includeInactive,
+            String departmentFilter,
+            int limitPerSide) {
+        if (limitPerSide < 1 || limitPerSide > 20) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be between 1 and 20");
+        }
+        LocalDate effectiveAsOf = asOfDate != null ? asOfDate : LocalDate.now();
+        String trimmedFilter = (departmentFilter == null || departmentFilter.isBlank())
+                ? null
+                : departmentFilter.trim();
+
+        List<SalaryRecord> activeRecords = salaryRecordRepository.findActiveRecordsAsOf(effectiveAsOf, includeInactive);
+        if (trimmedFilter != null) {
+            activeRecords = activeRecords.stream()
+                    .filter(sr -> trimmedFilter.equalsIgnoreCase(sr.getEmployee().getDepartment().trim()))
+                    .toList();
+        }
+
+        Map<String, List<SalaryRecord>> byDepartment = activeRecords.stream()
+                .collect(Collectors.groupingBy(sr -> sr.getEmployee().getDepartment().trim()));
+
+        Comparator<EmployeeCompensationSnapshot> byPayAscending = Comparator
+                .comparing(EmployeeCompensationSnapshot::reportingCurrencyAmount)
+                .thenComparing(EmployeeCompensationSnapshot::employeeNumber);
+
+        List<DepartmentExtremes> departments = byDepartment.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> {
+                    List<EmployeeCompensationSnapshot> sortedAscending = entry.getValue().stream()
+                            .map(this::toSnapshot)
+                            .sorted(byPayAscending)
+                            .toList();
+
+                    List<EmployeeCompensationSnapshot> lowest = sortedAscending.stream()
+                            .limit(limitPerSide)
+                            .toList();
+                    List<EmployeeCompensationSnapshot> highest = sortedAscending.stream()
+                            .sorted(byPayAscending.reversed())
+                            .limit(limitPerSide)
+                            .toList();
+
+                    return new DepartmentExtremes(
+                            entry.getKey(),
+                            sortedAscending.size(),
+                            highest.isEmpty() ? null : highest.get(0),
+                            lowest.isEmpty() ? null : lowest.get(0),
+                            highest,
+                            lowest);
+                })
+                .toList();
+
+        return new DepartmentSalaryExtremesReportResponse(
+                effectiveAsOf,
+                includeInactive,
+                SupportedCompensationCatalog.REPORTING_CURRENCY,
+                RATE_BASIS_DISCLOSURE,
+                limitPerSide,
+                departments);
+    }
+
+    private EmployeeCompensationSnapshot toSnapshot(SalaryRecord record) {
+        var employee = record.getEmployee();
+        return new EmployeeCompensationSnapshot(
+                employee.getId(),
+                employee.getEmployeeNumber(),
+                employee.getFirstName() + " " + employee.getLastName(),
+                employee.getCountryCode(),
+                employee.getJobTitle(),
+                employee.getJobLevel(),
+                record.getAmount(),
+                record.getCurrencyCode(),
+                toReportingCurrency(record),
+                record.getEffectiveDate());
     }
 
     private List<BandRange> buildBandRanges(BigDecimal bandSize, List<BigDecimal> customThresholds) {

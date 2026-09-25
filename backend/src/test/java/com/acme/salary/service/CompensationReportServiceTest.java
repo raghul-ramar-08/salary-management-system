@@ -171,4 +171,40 @@ class CompensationReportServiceTest {
         assertEquals(1, usDistribution.bands().get(2).headcount());
         assertEquals(1, usDistribution.bands().get(5).headcount());
     }
+
+    @Test
+    void departmentExtremesReportIdentifiesHighestAndLowestPaidEmployeesUsingNormalizedCurrency() {
+        LocalDate asOfDate = LocalDate.of(2026, 9, 26);
+
+        Employee engIn = new Employee("ACME-00001", "Priya", "Nair", "IN", "Engineering",
+                "Junior Engineer", "L1", LocalDate.of(2024, 1, 1), EmploymentStatus.ACTIVE);
+        Employee engGb = new Employee("ACME-00002", "Jordan", "Patel", "GB", "Engineering",
+                "Senior Engineer", "L4", LocalDate.of(2021, 1, 1), EmploymentStatus.ACTIVE);
+        Employee engUs = new Employee("ACME-00003", "Avery", "Shah", "US", "Engineering",
+                "Principal Engineer", "L6", LocalDate.of(2019, 1, 1), EmploymentStatus.ACTIVE);
+
+        List<SalaryRecord> activeRecords = List.of(
+                // 1,200,000 INR * 0.0120 = 14,400.00 USD (Lowest in USD even though nominal INR number is 1.2M!)
+                new SalaryRecord(engIn, new BigDecimal("1200000.00"), "INR", asOfDate.minusMonths(2), null, "Base"),
+                // 80,000 GBP * 1.2700 = 101,600.00 USD
+                new SalaryRecord(engGb, new BigDecimal("80000.00"), "GBP", asOfDate.minusMonths(2), null, "Base"),
+                // 165,000 USD -> 165,000.00 USD (Highest in USD)
+                new SalaryRecord(engUs, new BigDecimal("165000.00"), "USD", asOfDate.minusMonths(2), null, "Base"));
+
+        when(salaryRecordRepository.findActiveRecordsAsOf(asOfDate, false)).thenReturn(activeRecords);
+
+        var report = reportService.departmentExtremesReport(asOfDate, false, "Engineering", 2);
+
+        assertEquals(1, report.departments().size());
+        var engineering = report.departments().get(0);
+        assertEquals("Engineering", engineering.department());
+        assertEquals(3, engineering.headcount());
+        assertEquals("ACME-00003", engineering.highestPaid().employeeNumber());
+        assertEquals(new BigDecimal("165000.00"), engineering.highestPaid().reportingCurrencyAmount());
+        assertEquals("ACME-00001", engineering.lowestPaid().employeeNumber());
+        assertEquals(new BigDecimal("14400.00"), engineering.lowestPaid().reportingCurrencyAmount());
+        assertEquals(new BigDecimal("1200000.00"), engineering.lowestPaid().localAmount());
+        assertEquals(2, engineering.highestPaidEmployees().size());
+        assertEquals(2, engineering.lowestPaidEmployees().size());
+    }
 }

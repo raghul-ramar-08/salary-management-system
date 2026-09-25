@@ -1,6 +1,7 @@
 package com.acme.salary.controller;
 
 import com.acme.salary.dto.CountrySalaryReportResponse;
+import com.acme.salary.dto.DepartmentSalaryExtremesReportResponse;
 import com.acme.salary.dto.DepartmentSalaryReportResponse;
 import com.acme.salary.dto.SalaryDistributionReportResponse;
 import com.acme.salary.service.CompensationReportService;
@@ -47,5 +48,14 @@ public class CompensationReportController {
             @RequestParam(required = false) List<BigDecimal> bands) {
         BigDecimal effectiveBandSize = bandSize != null ? bandSize : bucketSize;
         return reportService.distributionReport(asOfDate, includeInactive, countryCode, effectiveBandSize, bands);
+    }
+
+    @GetMapping({"/department-extremes", "/salary/outliers"})
+    public DepartmentSalaryExtremesReportResponse departmentExtremesReport(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate,
+            @RequestParam(defaultValue = "false") boolean includeInactive,
+            @RequestParam(required = false) String department,
+            @RequestParam(defaultValue = "3") int limit) {
+        return reportService.departmentExtremesReport(asOfDate, includeInactive, department, limit);
     }
 }
