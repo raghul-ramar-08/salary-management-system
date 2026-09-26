@@ -15,6 +15,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -182,5 +183,74 @@ class SalaryManagementApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidEmployeeJson))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updatesEmployeeProfileDetailsSuccessfully() throws Exception {
+        String createEmployeeJson = """
+                {
+                  "employeeNumber": "ACME-90050",
+                  "firstName": "Taylor",
+                  "lastName": "Reed",
+                  "countryCode": "US",
+                  "department": "Engineering",
+                  "jobTitle": "Junior Developer",
+                  "jobLevel": "L1",
+                  "dateOfJoining": "2024-01-10",
+                  "status": "ACTIVE",
+                  "initialSalary": {
+                    "amount": 75000.00,
+                    "currencyCode": "USD",
+                    "effectiveDate": "2024-01-10",
+                    "changeReason": "Initial hire compensation"
+                  }
+                }
+                """;
+
+        mockMvc.perform(post("/api/employees")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createEmployeeJson))
+                .andExpect(status().isCreated());
+
+        var employeeId = employeeRepository.findByEmployeeNumberIgnoreCase("ACME-90050")
+                .orElseThrow().getId();
+
+        String updateJson = """
+                {
+                  "firstName": "Taylor",
+                  "lastName": "Reed-Smith",
+                  "countryCode": "US",
+                  "department": "Product",
+                  "jobTitle": "Product Designer",
+                  "jobLevel": "L2",
+                  "dateOfJoining": "2024-01-10",
+                  "status": "ACTIVE"
+                }
+                """;
+
+        mockMvc.perform(put("/api/employees/{id}", employeeId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.employee.id", is(employeeId.intValue())))
+                .andExpect(jsonPath("$.employee.employeeNumber", is("ACME-90050")))
+                .andExpect(jsonPath("$.employee.lastName", is("Reed-Smith")))
+                .andExpect(jsonPath("$.employee.department", is("Product")))
+                .andExpect(jsonPath("$.employee.jobTitle", is("Product Designer")))
+                .andExpect(jsonPath("$.employee.jobLevel", is("L2")))
+                .andExpect(jsonPath("$.currentSalary.amount", is(75000.00)));
+
+        // Verify GET /api/employees/{id} returns the updated state
+        mockMvc.perform(get("/api/employees/{id}", employeeId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.employee.lastName", is("Reed-Smith")))
+                .andExpect(jsonPath("$.employee.department", is("Product")))
+                .andExpect(jsonPath("$.employee.jobTitle", is("Product Designer")));
+
+        // Verify PUT with non-existent ID returns 404
+        mockMvc.perform(put("/api/employees/999999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateJson))
+                .andExpect(status().isNotFound());
     }
 }

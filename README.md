@@ -106,6 +106,7 @@ npm run build
 | `GET` | `/api/employees` | Paginated, sortable, filterable employee directory (`q`, `countryCode`, `department`, `status`, `page`, `size`, `sortBy`, `direction`) |
 | `POST` | `/api/employees` | Create a new employee with initial salary transactionally (`201 Created`, `409 Conflict` on duplicate ID) |
 | `GET` | `/api/employees/{id}` | Single employee profile with `currentSalary` and `salaryHistory` |
+| `PUT` | `/api/employees/{id}` | Update employee profile fields (name, department, country, job title, job level, date of joining, status) |
 | `GET` | `/api/employees/{employeeNumber}/salary-records` | Ordered salary history for an employee |
 | `POST` | `/api/employees/{employeeNumber}/salary-records` | Record a new salary period and close the adjacent prior period |
 | `GET` | `/api/salary-records` | Paginated salary-record search (`currentOnly`, `countryCode`, `department`, `currencyCode`, `effectiveFrom`, `effectiveTo`) |
@@ -128,6 +129,6 @@ npm run build
 ### Suggested 3-Minute Demo Video Script
 1. **Employee Directory (`/`)**: Show the 10,000 seeded employees across 5 countries (`US`, `IN`, `GB`, `DE`, `SG`), filter by country/department/status, and sort columns with instant server-side pagination.
 2. **Create Employee (`+ Add employee`)**: Onboard a new employee (e.g., `ACME-10001`) with an initial salary in one transaction, then click `View profile →`.
-3. **Employee Profile & Versioned Salary Change (`/employees/:id`)**: Inspect the employee’s active salary and effective-dated history. Record a promotion salary change and show that the previous salary period’s `End Date` is automatically closed on the day before the new effective date (`Historical` vs `Current`).
+3. **Employee Profile, Edit Details & Versioned Salary Change (`/employees/:id`)**: Inspect the employee’s active salary and effective-dated history. Edit employee profile details (department, job title, level, status) and save. Record a promotion salary change and show that the previous salary period’s `End Date` is automatically closed on the day before the new effective date (`Historical` vs `Current`).
 4. **Compensation Analytics Dashboard (`/dashboard`)**: Walk through the normalized `USD` KPI cards, the explicit fixed-rate FX disclosure banner, the Country & Department pay/payroll tables, the configurable Salary Band Distribution histogram (`$15k` / `$25k` / `$40k` / `$50k` bands), and the Highest/Lowest-Paid Employees per department.
 

@@ -3,6 +3,7 @@ package com.acme.salary.controller;
 import com.acme.salary.dto.CreateEmployeeRequest;
 import com.acme.salary.dto.EmployeeResponse;
 import com.acme.salary.dto.EmployeeProfileResponse;
+import com.acme.salary.dto.UpdateEmployeeRequest;
 import com.acme.salary.entity.Employee.EmploymentStatus;
 import com.acme.salary.service.EmployeeService;
 import jakarta.validation.Valid;
@@ -17,6 +18,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -68,6 +70,13 @@ public class EmployeeController {
     @GetMapping("/{id}")
     public EmployeeProfileResponse getEmployee(@PathVariable("id") String idOrNumber) {
         return employeeService.profile(idOrNumber);
+    }
+
+    @PutMapping("/{id}")
+    public EmployeeProfileResponse updateEmployee(@PathVariable("id") String idOrNumber,
+                                                  @Valid @RequestBody UpdateEmployeeRequest request) {
+        log.debug("Update employee request started: identifier={}", idOrNumber);
+        return employeeService.update(idOrNumber, request);
     }
 
     @PostMapping

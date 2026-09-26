@@ -7,7 +7,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { SalaryApiService } from './features/salary-records/salary-api.service';
 import { SalaryRecord } from './features/salary-records/salary-record';
 import { EmployeeProfile } from './models/employee';
-import { EmployeeApiService } from './services/employee-api.service';
+import { EmployeeApiService, UpdateEmployeeRequest } from './services/employee-api.service';
 
 @Component({
   selector: 'app-employee-profile',
@@ -98,6 +98,67 @@ import { EmployeeApiService } from './services/employee-api.service';
           <p *ngIf="salaryFeedback" class="feedback" [class.error]="salaryError">{{ salaryFeedback }}</p>
         </section>
 
+        <section class="panel edit-panel" aria-label="Edit employee details">
+          <div class="section-heading">
+            <div>
+              <h2>Edit employee details</h2>
+              <p>Update profile fields — employee number cannot be changed</p>
+            </div>
+            <button type="button" class="toggle-btn" (click)="showEditForm = !showEditForm">
+              {{ showEditForm ? 'Close' : 'Edit details' }}
+            </button>
+          </div>
+          <form *ngIf="showEditForm" class="edit-form" (ngSubmit)="submitEdit(detail.employee.id)">
+            <label>
+              <span>First name</span>
+              <input type="text" name="editFirstName" maxlength="80" required [(ngModel)]="editFirstName">
+            </label>
+            <label>
+              <span>Last name</span>
+              <input type="text" name="editLastName" maxlength="80" required [(ngModel)]="editLastName">
+            </label>
+            <label>
+              <span>Country</span>
+              <select name="editCountryCode" required [(ngModel)]="editCountryCode">
+                <option value="US">United States (US)</option>
+                <option value="IN">India (IN)</option>
+                <option value="GB">United Kingdom (GB)</option>
+                <option value="DE">Germany (DE)</option>
+                <option value="SG">Singapore (SG)</option>
+              </select>
+            </label>
+            <label>
+              <span>Department</span>
+              <select name="editDepartment" required [(ngModel)]="editDepartment">
+                <option *ngFor="let d of departments" [value]="d">{{ d }}</option>
+              </select>
+            </label>
+            <label>
+              <span>Job title</span>
+              <input type="text" name="editJobTitle" maxlength="120" required [(ngModel)]="editJobTitle">
+            </label>
+            <label>
+              <span>Job level</span>
+              <input type="text" name="editJobLevel" maxlength="40" [(ngModel)]="editJobLevel" placeholder="L4 (optional)">
+            </label>
+            <label>
+              <span>Date of joining</span>
+              <input type="date" name="editDateOfJoining" required [(ngModel)]="editDateOfJoining">
+            </label>
+            <label>
+              <span>Status</span>
+              <select name="editStatus" required [(ngModel)]="editStatus">
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+            </label>
+            <button type="submit" [disabled]="savingEdit">
+              {{ savingEdit ? 'Saving…' : 'Save changes' }}
+            </button>
+          </form>
+          <p *ngIf="editFeedback" class="feedback" [class.error]="editError">{{ editFeedback }}</p>
+        </section>
+
         <section class="panel history-panel">
           <div class="section-heading">
             <div><h2>Salary history</h2><p>Past, current, and scheduled salary periods</p></div>
@@ -157,6 +218,16 @@ import { EmployeeApiService } from './services/employee-api.service';
     .salary-form button { height:36px; padding:0 16px; border:0; border-radius:8px; background:#173f36; color:#fff; font-size:12px; font-weight:600; cursor:pointer; }
     .salary-form button:disabled { opacity:.6; cursor:default; }
     .feedback { margin:10px 22px 0; color:#2f6b48; font-size:12px; }
+    .feedback.error { color:#a23434; }
+    .edit-panel { padding-bottom:18px; }
+    .section-heading { display:flex; align-items:center; justify-content:space-between; padding:20px 22px 12px; }
+    .toggle-btn { height:32px; padding:0 14px; border:1px solid #b5c9be; border-radius:8px; background:#fff; color:#173f36; font-size:11px; font-weight:600; cursor:pointer; }
+    .toggle-btn:hover { background:#f0f5f2; }
+    .edit-form { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:12px; align-items:end; padding:6px 22px 0; }
+    .edit-form label { display:grid; gap:6px; color:#68877b; font-size:11px; font-weight:600; }
+    .edit-form input,.edit-form select { height:36px; padding:0 10px; border:1px solid #d2ddd6; border-radius:8px; font-size:12px; color:#203a32; background:#fff; }
+    .edit-form button { height:36px; padding:0 16px; border:0; border-radius:8px; background:#173f36; color:#fff; font-size:12px; font-weight:600; cursor:pointer; align-self:end; }
+    .edit-form button:disabled { opacity:.6; cursor:default; }
     .history-panel { overflow:hidden; }
     .section-heading { padding:20px 22px 12px; }
     .section-heading p { margin:6px 0 0; color:#87958e; font-size:11px; }
@@ -210,6 +281,22 @@ export class EmployeeProfileComponent implements OnInit {
   savingSalary = false;
   salaryFeedback = '';
   salaryError = false;
+
+  // Edit employee fields — pre-populated when the profile loads
+  readonly departments = ['Engineering', 'Finance', 'Sales', 'People', 'Operations', 'Product'];
+  showEditForm = false;
+  savingEdit = false;
+  editFeedback = '';
+  editError = false;
+  editFirstName = '';
+  editLastName = '';
+  editCountryCode = '';
+  editDepartment = '';
+  editJobTitle = '';
+  editJobLevel = '';
+  editDateOfJoining = '';
+  editStatus: 'ACTIVE' | 'INACTIVE' = 'ACTIVE';
+
   private employeeIdentifier: string | number = '';
 
   ngOnInit(): void {
@@ -287,12 +374,62 @@ export class EmployeeProfileComponent implements OnInit {
         this.newCurrencyCode = profile.currentSalary?.currencyCode
           ?? this.defaultCurrencyByCountry[profile.employee.countryCode]
           ?? 'USD';
+        this.populateEditForm(profile);
       },
       error: error => {
         this.loading = false;
         this.errorMessage = error.status === 404
           ? 'Employee profile was not found.'
           : 'Could not load employee profile. Check that the backend is running.';
+      }
+    });
+  }
+
+  private populateEditForm(profile: EmployeeProfile): void {
+    const e = profile.employee;
+    this.editFirstName = e.firstName;
+    this.editLastName = e.lastName;
+    this.editCountryCode = e.countryCode;
+    this.editDepartment = e.department;
+    this.editJobTitle = e.jobTitle;
+    this.editJobLevel = e.jobLevel ?? '';
+    this.editDateOfJoining = e.dateOfJoining;
+    this.editStatus = e.status;
+  }
+
+  submitEdit(employeeId: number): void {
+    if (!this.editFirstName.trim() || !this.editLastName.trim() ||
+        !this.editJobTitle.trim() || !this.editDateOfJoining) {
+      this.editError = true;
+      this.editFeedback = 'First name, last name, job title, and date of joining are required.';
+      return;
+    }
+    this.savingEdit = true;
+    this.editFeedback = '';
+    this.editError = false;
+    const request: UpdateEmployeeRequest = {
+      firstName: this.editFirstName.trim(),
+      lastName: this.editLastName.trim(),
+      countryCode: this.editCountryCode,
+      department: this.editDepartment,
+      jobTitle: this.editJobTitle.trim(),
+      jobLevel: this.editJobLevel.trim() || null,
+      dateOfJoining: this.editDateOfJoining,
+      status: this.editStatus
+    };
+    this.api.update(employeeId, request).pipe(take(1)).subscribe({
+      next: updated => {
+        this.savingEdit = false;
+        this.editFeedback = 'Employee details updated successfully.';
+        this.editError = false;
+        this.profile = updated;
+        this.populateEditForm(updated);
+      },
+      error: error => {
+        this.savingEdit = false;
+        this.editError = true;
+        this.editFeedback = error?.error?.message || error?.error?.detail
+          || (error.status === 400 ? 'Check all fields and try again.' : 'Could not save changes.');
       }
     });
   }

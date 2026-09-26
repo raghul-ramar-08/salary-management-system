@@ -3,6 +3,17 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { CreateEmployeeRequest, EmployeePage, EmployeeProfile, EmployeeSearch } from '../models/employee';
 
+export interface UpdateEmployeeRequest {
+  firstName: string;
+  lastName: string;
+  countryCode: string;
+  department: string;
+  jobTitle: string;
+  jobLevel: string | null;
+  dateOfJoining: string;
+  status: 'ACTIVE' | 'INACTIVE';
+}
+
 @Injectable({ providedIn: 'root' })
 export class EmployeeApiService {
   private readonly http = inject(HttpClient);
@@ -39,8 +50,11 @@ export class EmployeeApiService {
     return this.http.get<EmployeeProfile>(`${this.endpoint}/${id}`);
   }
 
+  update(id: number | string, request: UpdateEmployeeRequest): Observable<EmployeeProfile> {
+    return this.http.put<EmployeeProfile>(`${this.endpoint}/${id}`, request);
+  }
+
   create(request: CreateEmployeeRequest): Observable<EmployeeProfile> {
     return this.http.post<EmployeeProfile>(this.endpoint, request);
   }
 }
-

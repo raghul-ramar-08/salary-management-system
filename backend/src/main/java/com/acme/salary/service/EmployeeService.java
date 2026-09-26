@@ -4,6 +4,7 @@ import com.acme.salary.dto.CreateEmployeeRequest;
 import com.acme.salary.dto.EmployeeResponse;
 import com.acme.salary.dto.EmployeeProfileResponse;
 import com.acme.salary.dto.SalaryRecordResponse;
+import com.acme.salary.dto.UpdateEmployeeRequest;
 import com.acme.salary.entity.Employee;
 import com.acme.salary.entity.Employee.EmploymentStatus;
 import com.acme.salary.entity.SalaryRecord;
@@ -83,6 +84,38 @@ public class EmployeeService {
                 .findFirst().orElse(null);
 
         return new EmployeeProfileResponse(EmployeeResponse.from(employee), currentSalary, history);
+    }
+
+    @Transactional
+    public EmployeeProfileResponse update(String identifier, UpdateEmployeeRequest request) {
+        if (identifier == null || identifier.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Employee identifier is required");
+        }
+        String trimmed = identifier.trim();
+        Employee employee;
+        try {
+            Long numericId = Long.parseLong(trimmed);
+            employee = employeeRepository.findById(numericId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found"));
+        } catch (NumberFormatException ignored) {
+            employee = employeeRepository.findByEmployeeNumberIgnoreCase(trimmed)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found"));
+        }
+
+        String normalizedCountry = SupportedCompensationCatalog.requireSupportedCountry(request.countryCode());
+
+        employee.setFirstName(request.firstName().trim());
+        employee.setLastName(request.lastName().trim());
+        employee.setCountryCode(normalizedCountry);
+        employee.setDepartment(request.department().trim());
+        employee.setJobTitle(request.jobTitle().trim());
+        employee.setJobLevel(blankToNull(request.jobLevel()));
+        employee.setDateOfJoining(request.dateOfJoining());
+        employee.setStatus(request.status());
+
+        Employee saved = employeeRepository.save(employee);
+        log.info("Employee updated: employeeId={}, employeeNumber={}", saved.getId(), saved.getEmployeeNumber());
+        return buildProfile(saved, saved.getId());
     }
 
     @Transactional

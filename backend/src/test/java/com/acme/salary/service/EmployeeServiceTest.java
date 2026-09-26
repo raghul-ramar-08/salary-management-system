@@ -2,6 +2,7 @@ package com.acme.salary.service;
 
 import com.acme.salary.dto.CreateEmployeeRequest;
 import com.acme.salary.dto.SalaryRecordRequest;
+import com.acme.salary.dto.UpdateEmployeeRequest;
 import com.acme.salary.entity.Employee;
 import com.acme.salary.entity.Employee.EmploymentStatus;
 import com.acme.salary.entity.SalaryRecord;
@@ -228,5 +229,71 @@ class EmployeeServiceTest {
         assertEquals(CONFLICT, error.getStatusCode());
         verify(employeeRepository, never()).save(any(Employee.class));
         verify(salaryRecordRepository, never()).save(any(SalaryRecord.class));
+    }
+
+    @Test
+    void updateAppliesAllMutableFieldsAndReturnsRefreshedProfile() {
+        LocalDate today = LocalDate.now();
+        Employee employee = new Employee("ACME-00001", "Avery", "Shah", "IN", "Engineering",
+                "Software Engineer", "L2", LocalDate.of(2022, 4, 1), EmploymentStatus.ACTIVE);
+
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(employee));
+        when(employeeRepository.save(any(Employee.class))).thenAnswer(inv -> inv.getArgument(0));
+        // buildProfile fetches salary history for the saved employee — stub with any() to avoid strict-stub failure
+        org.mockito.Mockito.lenient()
+                .when(salaryRecordRepository.findByEmployee_IdOrderByEffectiveDateDescRecordedAtDesc(any()))
+                .thenReturn(List.of());
+
+        var request = new UpdateEmployeeRequest(
+                " Riley ", " Chen ", "US", "Product", "Staff Engineer", "L5",
+                today, EmploymentStatus.ACTIVE);
+
+        var result = employeeService.update("1", request);
+
+        assertEquals("Riley", result.employee().firstName());
+        assertEquals("Chen", result.employee().lastName());
+        assertEquals("US", result.employee().countryCode());
+        assertEquals("Product", result.employee().department());
+        assertEquals("Staff Engineer", result.employee().jobTitle());
+        assertEquals("L5", result.employee().jobLevel());
+        // employeeNumber must not change
+        assertEquals("ACME-00001", result.employee().employeeNumber());
+        verify(employeeRepository).save(any(Employee.class));
+    }
+
+    @Test
+    void updateLooksUpByEmployeeNumber() {
+        LocalDate today = LocalDate.now();
+        Employee employee = new Employee("ACME-00001", "Avery", "Shah", "IN", "Engineering",
+                "Software Engineer", "L2", today, EmploymentStatus.ACTIVE);
+
+        when(employeeRepository.findByEmployeeNumberIgnoreCase("ACME-00001"))
+                .thenReturn(Optional.of(employee));
+        when(employeeRepository.save(any(Employee.class))).thenAnswer(inv -> inv.getArgument(0));
+        org.mockito.Mockito.lenient()
+                .when(salaryRecordRepository.findByEmployee_IdOrderByEffectiveDateDescRecordedAtDesc(any()))
+                .thenReturn(List.of());
+
+        var request = new UpdateEmployeeRequest(
+                "Avery", "Shah", "IN", "Finance", "Senior Analyst", null,
+                today, EmploymentStatus.INACTIVE);
+
+        var result = employeeService.update("ACME-00001", request);
+
+        assertEquals("Finance", result.employee().department());
+        assertEquals(EmploymentStatus.INACTIVE, result.employee().status());
+    }
+
+    @Test
+    void updateReturnsNotFoundForUnknownEmployee() {
+        when(employeeRepository.findById(999L)).thenReturn(Optional.empty());
+
+        var error = assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> employeeService.update("999",
+                        new UpdateEmployeeRequest("A", "B", "US", "Engineering",
+                                "Engineer", null, LocalDate.now(), EmploymentStatus.ACTIVE)));
+
+        assertEquals(NOT_FOUND, error.getStatusCode());
+        verify(employeeRepository, never()).save(any(Employee.class));
     }
 }

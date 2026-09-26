@@ -77,6 +77,16 @@ public class Employee {
     public LocalDate getDateOfJoining() { return dateOfJoining; }
     public EmploymentStatus getStatus() { return status; }
 
+    // employeeNumber is a stable business identifier — not settable after creation
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+    public void setCountryCode(String countryCode) { this.countryCode = countryCode; }
+    public void setDepartment(String department) { this.department = department; }
+    public void setJobTitle(String jobTitle) { this.jobTitle = jobTitle; }
+    public void setJobLevel(String jobLevel) { this.jobLevel = jobLevel; }
+    public void setDateOfJoining(LocalDate dateOfJoining) { this.dateOfJoining = dateOfJoining; }
+    public void setStatus(EmploymentStatus status) { this.status = status; }
+
     public enum EmploymentStatus {
         ACTIVE,
         INACTIVE
