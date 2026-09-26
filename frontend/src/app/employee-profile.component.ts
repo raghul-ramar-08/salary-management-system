@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { take } from 'rxjs';
+import { catchError, of, switchMap, take } from 'rxjs';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { SalaryApiService } from './features/salary-records/salary-api.service';
 import { SalaryRecord } from './features/salary-records/salary-record';
@@ -20,7 +20,7 @@ import { EmployeeApiService, UpdateEmployeeRequest } from './services/employee-a
       <p *ngIf="loading" class="state-message" role="status">Loading employee profile…</p>
       <p *ngIf="errorMessage" class="state-message error" role="alert">{{ errorMessage }}</p>
 
-      <ng-container *ngIf="profile as detail">
+      <ng-container *ngIf="!loading && profile as detail">
         <header class="page-heading">
           <div>
             <p class="eyebrow">EMPLOYEE PROFILE</p>
@@ -162,9 +162,9 @@ import { EmployeeApiService, UpdateEmployeeRequest } from './services/employee-a
         <section class="panel history-panel">
           <div class="section-heading">
             <div><h2>Salary history</h2><p>Past, current, and scheduled salary periods</p></div>
-            <span>{{ detail.salaryHistory.length }} records</span>
+            <span>{{ detail.salaryHistory?.length || 0 }} records</span>
           </div>
-          <div class="table-scroll" *ngIf="detail.salaryHistory.length; else emptyHistory">
+          <div class="table-scroll" *ngIf="detail.salaryHistory && detail.salaryHistory.length; else emptyHistory">
             <table>
               <thead>
                 <tr><th>ANNUAL SALARY</th><th>START DATE</th><th>END DATE</th><th>PERIOD STATUS</th><th>REASON</th></tr>
@@ -254,6 +254,7 @@ export class EmployeeProfileComponent implements OnInit {
   private readonly api = inject(EmployeeApiService);
   private readonly salaryApi = inject(SalaryApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   private readonly countryNames: Record<string, string> = {
     US: 'United States (US)',
@@ -300,18 +301,48 @@ export class EmployeeProfileComponent implements OnInit {
   private employeeIdentifier: string | number = '';
 
   ngOnInit(): void {
-    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
-      const id = params.get('id');
-      if (!id || !id.trim()) {
+    this.route.paramMap.pipe(
+      takeUntilDestroyed(this.destroyRef),
+      switchMap(params => {
+        const id = params.get('id');
+        if (!id || !id.trim()) {
+          this.loading = false;
+          this.profile = null;
+          this.errorMessage = 'Employee profile was not found.';
+          this.cdr.markForCheck();
+          return of(null);
+        }
+        this.employeeIdentifier = id.trim();
+        this.loading = true;
+        this.errorMessage = '';
+        this.cdr.markForCheck();
+        return this.api.profile(this.employeeIdentifier).pipe(
+          catchError(error => {
+            this.loading = false;
+            this.errorMessage = error.status === 404
+              ? 'Employee profile was not found.'
+              : 'Could not load employee profile. Check that the backend is running.';
+            this.cdr.markForCheck();
+            return of(null);
+          })
+        );
+      })
+    ).subscribe(profile => {
+      if (profile) {
+        this.profile = profile;
         this.loading = false;
-        this.profile = null;
-        this.errorMessage = 'Employee profile was not found.';
-        return;
+        this.errorMessage = '';
+        this.newCurrencyCode = profile.currentSalary?.currencyCode
+          ?? this.defaultCurrencyByCountry[profile.employee?.countryCode]
+          ?? 'USD';
+        try {
+          this.populateEditForm(profile);
+        } catch (e) {
+          console.error('[EmployeeProfileComponent] Error populating edit form:', e);
+        }
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       }
-      this.employeeIdentifier = id.trim();
-      this.loading = true;
-      this.errorMessage = '';
-      this.loadProfile();
     });
   }
 
@@ -341,18 +372,20 @@ export class EmployeeProfileComponent implements OnInit {
     this.savingSalary = true;
     this.salaryFeedback = '';
     this.salaryError = false;
+    this.cdr.markForCheck();
 
     this.salaryApi.add(employeeNumber, {
       amount: this.newAmount,
       currencyCode: this.newCurrencyCode,
       effectiveDate: this.newEffectiveDate,
       changeReason: this.newChangeReason.trim()
-    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    }).pipe(take(1)).subscribe({
       next: () => {
         this.savingSalary = false;
         this.salaryFeedback = 'Salary record added and history updated.';
         this.newAmount = null;
         this.newChangeReason = '';
+        this.cdr.markForCheck();
         this.loadProfile();
       },
       error: error => {
@@ -362,39 +395,52 @@ export class EmployeeProfileComponent implements OnInit {
           || (error.status === 409
             ? 'A salary record already exists for that effective date.'
             : 'Could not save salary record.');
+        this.cdr.markForCheck();
       }
     });
   }
 
   private loadProfile(): void {
+    this.loading = true;
+    this.cdr.markForCheck();
     this.api.profile(this.employeeIdentifier).pipe(take(1)).subscribe({
       next: profile => {
         this.profile = profile;
         this.loading = false;
+        this.errorMessage = '';
         this.newCurrencyCode = profile.currentSalary?.currencyCode
-          ?? this.defaultCurrencyByCountry[profile.employee.countryCode]
+          ?? this.defaultCurrencyByCountry[profile.employee?.countryCode]
           ?? 'USD';
-        this.populateEditForm(profile);
+        try {
+          this.populateEditForm(profile);
+        } catch (e) {
+          console.error('[EmployeeProfileComponent] Error populating edit form:', e);
+        }
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       },
       error: error => {
         this.loading = false;
         this.errorMessage = error.status === 404
           ? 'Employee profile was not found.'
           : 'Could not load employee profile. Check that the backend is running.';
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       }
     });
   }
 
   private populateEditForm(profile: EmployeeProfile): void {
+    if (!profile?.employee) return;
     const e = profile.employee;
-    this.editFirstName = e.firstName;
-    this.editLastName = e.lastName;
-    this.editCountryCode = e.countryCode;
-    this.editDepartment = e.department;
-    this.editJobTitle = e.jobTitle;
+    this.editFirstName = e.firstName || '';
+    this.editLastName = e.lastName || '';
+    this.editCountryCode = e.countryCode || 'US';
+    this.editDepartment = e.department || (this.departments[0] ?? 'Engineering');
+    this.editJobTitle = e.jobTitle || '';
     this.editJobLevel = e.jobLevel ?? '';
-    this.editDateOfJoining = e.dateOfJoining;
-    this.editStatus = e.status;
+    this.editDateOfJoining = e.dateOfJoining || '';
+    this.editStatus = e.status || 'ACTIVE';
   }
 
   submitEdit(employeeId: number): void {
@@ -407,6 +453,7 @@ export class EmployeeProfileComponent implements OnInit {
     this.savingEdit = true;
     this.editFeedback = '';
     this.editError = false;
+    this.cdr.markForCheck();
     const request: UpdateEmployeeRequest = {
       firstName: this.editFirstName.trim(),
       lastName: this.editLastName.trim(),
@@ -423,13 +470,21 @@ export class EmployeeProfileComponent implements OnInit {
         this.editFeedback = 'Employee details updated successfully.';
         this.editError = false;
         this.profile = updated;
-        this.populateEditForm(updated);
+        try {
+          this.populateEditForm(updated);
+        } catch (e) {
+          console.error(e);
+        }
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       },
       error: error => {
         this.savingEdit = false;
         this.editError = true;
         this.editFeedback = error?.error?.message || error?.error?.detail
           || (error.status === 400 ? 'Check all fields and try again.' : 'Could not save changes.');
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       }
     });
   }
