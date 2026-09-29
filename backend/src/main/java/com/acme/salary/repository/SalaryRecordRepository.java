@@ -16,11 +16,11 @@ public interface SalaryRecordRepository extends JpaRepository<SalaryRecord, Long
     @Query("""
             select sr from SalaryRecord sr
             join sr.employee e
-            where (:employeeNumber is null
-                    or lower(e.employeeNumber) like lower(concat('%', :employeeNumber, '%')))
-              and (:countryCode is null or e.countryCode = :countryCode)
-              and (:department is null or lower(e.department) = lower(:department))
-              and (:currencyCode is null or sr.currencyCode = :currencyCode)
+            where (cast(:employeeNumber as string) is null
+                    or lower(e.employeeNumber) like lower(concat('%', cast(:employeeNumber as string), '%')))
+              and (cast(:countryCode as string) is null or e.countryCode = cast(:countryCode as string))
+              and (cast(:department as string) is null or lower(e.department) = lower(cast(:department as string)))
+              and (cast(:currencyCode as string) is null or sr.currencyCode = cast(:currencyCode as string))
               and (:effectiveFrom is null or sr.effectiveDate >= :effectiveFrom)
               and (:effectiveTo is null or sr.effectiveDate <= :effectiveTo)
               and (:currentOnly = false or (

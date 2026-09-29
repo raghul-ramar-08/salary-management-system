@@ -18,11 +18,11 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     @Query("""
             select e from Employee e
-            where (:q is null
-                   or lower(concat(e.firstName, ' ', e.lastName)) like lower(concat('%', :q, '%'))
-                   or lower(e.employeeNumber) like lower(concat('%', :q, '%')))
-              and (:countryCode is null or e.countryCode = :countryCode)
-              and (:department is null or lower(e.department) = lower(:department))
+            where (cast(:q as string) is null
+                   or lower(concat(e.firstName, ' ', e.lastName)) like lower(concat('%', cast(:q as string), '%'))
+                   or lower(e.employeeNumber) like lower(concat('%', cast(:q as string), '%')))
+              and (cast(:countryCode as string) is null or e.countryCode = cast(:countryCode as string))
+              and (cast(:department as string) is null or lower(e.department) = lower(cast(:department as string)))
               and (:status is null or e.status = :status)
             """)
     Page<Employee> search(

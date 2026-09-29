@@ -253,4 +253,49 @@ class SalaryManagementApiIntegrationTest {
                         .content(updateJson))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void searchesEmployeesWithNullParametersSuccessfully() throws Exception {
+        String createEmployeeJson = """
+                {
+                  "employeeNumber": "ACME-90080",
+                  "firstName": "Alex",
+                  "lastName": "Morgan",
+                  "countryCode": "US",
+                  "department": "Sales",
+                  "jobTitle": "Account Executive",
+                  "jobLevel": "L2",
+                  "dateOfJoining": "2024-02-01",
+                  "status": "ACTIVE",
+                  "initialSalary": {
+                    "amount": 70000.00,
+                    "currencyCode": "USD",
+                    "effectiveDate": "2024-02-01",
+                    "changeReason": "Initial hire compensation"
+                  }
+                }
+                """;
+
+        mockMvc.perform(post("/api/employees")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createEmployeeJson))
+                .andExpect(status().isCreated());
+
+        // Test with only countryCode filter (q, department, status are omitted / null)
+        mockMvc.perform(get("/api/employees")
+                        .param("page", "0")
+                        .param("size", "25")
+                        .param("sortBy", "lastName")
+                        .param("direction", "ASC")
+                        .param("countryCode", "US"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].employeeNumber", is("ACME-90080")));
+
+        // Test with completely null / default filters
+        mockMvc.perform(get("/api/employees"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)));
+    }
 }
+
