@@ -314,10 +314,14 @@ public class CompensationReportService {
     }
 
     private String formatBandLabel(BigDecimal min, BigDecimal max) {
-        if (max == null) {
-            return "$%,d+".formatted(min.longValue());
+        long minVal = min.longValue();
+        if (minVal > 0) {
+            minVal = minVal + 1;
         }
-        return "$%,d – $%,d".formatted(min.longValue(), max.longValue());
+        if (max == null) {
+            return "$%,d+".formatted(minVal);
+        }
+        return "$%,d – $%,d".formatted(minVal, max.longValue());
     }
 
     private record BandRange(String label, BigDecimal minInclusive, BigDecimal maxExclusive) {

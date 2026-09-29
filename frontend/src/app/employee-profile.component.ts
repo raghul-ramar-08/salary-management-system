@@ -1,9 +1,9 @@
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { catchError, of, switchMap, take } from 'rxjs';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { SalaryApiService } from './features/salary-records/salary-api.service';
 import { SalaryRecord } from './features/salary-records/salary-record';
 import { EmployeeProfile } from './models/employee';
@@ -15,7 +15,7 @@ import { EmployeeApiService, UpdateEmployeeRequest } from './services/employee-a
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <main class="page-shell">
-      <a routerLink="/" class="back-link">← Employee directory</a>
+      <button type="button" class="back-link" (click)="goBack()">{{ backLabel }}</button>
 
       <p *ngIf="loading" class="state-message" role="status">Loading employee profile…</p>
       <p *ngIf="errorMessage" class="state-message error" role="alert">{{ errorMessage }}</p>
@@ -192,8 +192,22 @@ import { EmployeeApiService, UpdateEmployeeRequest } from './services/employee-a
   styles: [`
     :host { display:block; min-height:100vh; background:#f4f7f5; color:#203a32; font:14px Arial,sans-serif; }
     .page-shell { max-width:1200px; margin:0 auto; padding:38px 5vw 48px; }
-    .back-link { display:inline-block; margin-bottom:24px; color:#3e745a; font-size:12px; text-decoration:none; }
-    .back-link:hover { text-decoration:underline; }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 24px;
+      color: #3e745a;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .back-link:hover { text-decoration: underline; color: #173f36; }
     .page-heading,.section-heading { display:flex; align-items:center; justify-content:space-between; gap:18px; }
     .page-heading { margin-bottom:22px; }
     .eyebrow { margin:0 0 8px; color:#68877b; font-size:10px; font-weight:700; letter-spacing:.14em; }
@@ -298,9 +312,36 @@ export class EmployeeProfileComponent implements OnInit {
   editDateOfJoining = '';
   editStatus: 'ACTIVE' | 'INACTIVE' = 'ACTIVE';
 
+  private readonly location = inject(Location);
+  private readonly router = inject(Router);
+
+  backLabel = '← Back';
   private employeeIdentifier: string | number = '';
 
+  goBack(): void {
+    if (window.history.length > 1) {
+      this.location.back();
+    } else {
+      const navState = history.state?.from;
+      if (navState === 'salary-records') {
+        this.router.navigate(['/salary-records']);
+      } else if (navState === 'dashboard') {
+        this.router.navigate(['/dashboard']);
+      } else {
+        this.router.navigate(['/']);
+      }
+    }
+  }
+
   ngOnInit(): void {
+    const navState = history.state?.from;
+    if (navState === 'salary-records') {
+      this.backLabel = '← Back to salary records';
+    } else if (navState === 'dashboard') {
+      this.backLabel = '← Back to dashboard';
+    } else {
+      this.backLabel = '← Back to employee directory';
+    }
     this.route.paramMap.pipe(
       takeUntilDestroyed(this.destroyRef),
       switchMap(params => {

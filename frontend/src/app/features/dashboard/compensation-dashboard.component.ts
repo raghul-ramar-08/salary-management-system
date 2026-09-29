@@ -26,25 +26,6 @@ import { ReportApiService } from '../../services/report-api.service';
             Cross-country payroll, median/average benchmarks, salary band distributions, and departmental pay extremes.
           </p>
         </div>
-        <div class="controls-card" aria-label="Report parameters">
-          <label>
-            <span>As-of date</span>
-            <input type="date" name="asOfDate" [(ngModel)]="asOfDate" (change)="loadAllReports()">
-          </label>
-          <label>
-            <span>Band width (USD)</span>
-            <select name="bandSize" [(ngModel)]="bandSize" (ngModelChange)="loadDistributionOnly()">
-              <option [ngValue]="15000">$15,000 bands</option>
-              <option [ngValue]="25000">$25,000 bands</option>
-              <option [ngValue]="40000">$40,000 bands</option>
-              <option [ngValue]="50000">$50,000 bands</option>
-            </select>
-          </label>
-          <label class="checkbox-label">
-            <input type="checkbox" name="includeInactive" [(ngModel)]="includeInactive" (change)="loadAllReports()">
-            <span>Include inactive employees</span>
-          </label>
-        </div>
       </header>
 
       <mat-progress-bar *ngIf="isAnyLoading()" mode="indeterminate" class="dashboard-progress-bar"></mat-progress-bar>
@@ -269,15 +250,34 @@ import { ReportApiService } from '../../services/report-api.service';
             </div>
             <p>Organization-wide and per-country distribution across \${{ (distributionReport?.bandSize || bandSize) | number:'1.0-0' }} bands</p>
           </div>
-          <label class="inline-filter" *ngIf="distributionReport as dist">
-            <span>Inspect country:</span>
-            <select [(ngModel)]="selectedDistributionCountry">
-              <option value="ALL">Organization-wide ({{ dist.totalHeadcount | number }} employees)</option>
-              <option *ngFor="let c of dist.countryDistributions" [value]="c.countryCode">
-                {{ countryName(c.countryCode) }} ({{ c.totalHeadcount | number }} employees)
-              </option>
-            </select>
-          </label>
+          <div class="distribution-toolbar" aria-label="Histogram filters">
+            <label class="inline-filter">
+              <span>As-of date:</span>
+              <input type="date" name="distAsOfDate" [(ngModel)]="asOfDate" (change)="loadAllReports()">
+            </label>
+            <label class="inline-filter">
+              <span>Bands:</span>
+              <select name="distBandSize" [(ngModel)]="bandSize" (ngModelChange)="loadDistributionOnly()">
+                <option [ngValue]="15000">$15,000 bands</option>
+                <option [ngValue]="25000">$25,000 bands</option>
+                <option [ngValue]="40000">$40,000 bands</option>
+                <option [ngValue]="50000">$50,000 bands</option>
+              </select>
+            </label>
+            <label class="inline-filter" *ngIf="distributionReport as dist">
+              <span>Inspect country:</span>
+              <select [(ngModel)]="selectedDistributionCountry">
+                <option value="ALL">Organization-wide ({{ dist.totalHeadcount | number }} employees)</option>
+                <option *ngFor="let c of dist.countryDistributions" [value]="c.countryCode">
+                  {{ countryName(c.countryCode) }} ({{ c.totalHeadcount | number }} employees)
+                </option>
+              </select>
+            </label>
+            <label class="inline-filter checkbox-inline">
+              <input type="checkbox" name="includeInactive" [(ngModel)]="includeInactive" (change)="loadAllReports()">
+              <span>Include inactive</span>
+            </label>
+          </div>
         </div>
 
         <div *ngIf="errorDistribution && !distributionReport" class="inline-error-banner" role="alert">
@@ -384,7 +384,7 @@ import { ReportApiService } from '../../services/report-api.service';
             <div class="outlier-columns">
               <div class="outlier-box highest" *ngIf="dept.highestPaid as high">
                 <span class="badge high-badge">HIGHEST PAID</span>
-                <a class="emp-link" [routerLink]="['/employees', high.employeeId]">
+                <a class="emp-link" [routerLink]="['/employees', high.employeeId]" [state]="{ from: 'dashboard' }">
                   {{ high.fullName }} ({{ high.employeeNumber }})
                 </a>
                 <p class="role-meta">{{ high.jobTitle }} · {{ high.jobLevel || 'Level N/A' }} · {{ high.countryCode }}</p>
@@ -393,7 +393,7 @@ import { ReportApiService } from '../../services/report-api.service';
               </div>
               <div class="outlier-box lowest" *ngIf="dept.lowestPaid as low">
                 <span class="badge low-badge">LOWEST PAID</span>
-                <a class="emp-link" [routerLink]="['/employees', low.employeeId]">
+                <a class="emp-link" [routerLink]="['/employees', low.employeeId]" [state]="{ from: 'dashboard' }">
                   {{ low.fullName }} ({{ low.employeeNumber }})
                 </a>
                 <p class="role-meta">{{ low.jobTitle }} · {{ low.jobLevel || 'Level N/A' }} · {{ low.countryCode }}</p>
@@ -524,7 +524,13 @@ import { ReportApiService } from '../../services/report-api.service';
       100% { transform: rotate(360deg); }
     }
 
+    .distribution-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
     .inline-filter { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #5a6e64; font-weight: 600; }
+    .inline-filter input[type="date"], .inline-filter select {
+      height: 34px; padding: 0 10px; border: 1px solid #d2ddd6; border-radius: 8px; font-size: 12px; color: #203a32; background: #fff;
+    }
+    .checkbox-inline { cursor: pointer; user-select: none; }
+    .checkbox-inline input { cursor: pointer; }
     .table-scroll { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 12px 16px; border-bottom: 1px solid #edf1ee; text-align: left; font-size: 12px; }
@@ -535,7 +541,7 @@ import { ReportApiService } from '../../services/report-api.service';
 
     /* Histogram */
     .histogram-list { display: grid; gap: 10px; padding: 8px 20px 18px; }
-    .histogram-row { display: grid; grid-template-columns: 150px 1fr 110px; align-items: center; gap: 14px; }
+    .histogram-row { display: grid; grid-template-columns: 165px 1fr 110px; align-items: center; gap: 14px; }
     .band-label { font-size: 12px; font-weight: 600; color: #314b40; }
     .bar-track { height: 16px; border-radius: 8px; background: #edf2ef; overflow: hidden; }
     .bar-fill { height: 100%; border-radius: 8px; background: linear-gradient(90deg, #265c47, #5ca37d); transition: width 0.4s ease; }

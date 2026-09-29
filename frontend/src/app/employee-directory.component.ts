@@ -135,7 +135,7 @@ import { EmployeeApiService } from './services/employee-api.service';
         </form>
         <p *ngIf="createFeedback" class="create-feedback" [class.error]="createError">
           {{ createFeedback }}
-          <a *ngIf="createdEmployeeId" [routerLink]="['/employees', createdEmployeeId]">View profile →</a>
+          <a *ngIf="createdEmployeeId" [routerLink]="['/employees', createdEmployeeId]" [state]="{ from: 'employees' }">View profile →</a>
         </p>
       </section>
 
@@ -194,7 +194,7 @@ import { EmployeeApiService } from './services/employee-api.service';
                 <div class="employee-cell">
                   <span class="avatar">{{ employee.firstName[0] }}{{ employee.lastName[0] }}</span>
                   <span>
-                    <a class="profile-link" [routerLink]="['/employees', employee.id]" (click)="$event.stopPropagation()">
+                    <a class="profile-link" [routerLink]="['/employees', employee.id]" [state]="{ from: 'employees' }" (click)="$event.stopPropagation()">
                       {{ employee.firstName }} {{ employee.lastName }}
                     </a>
                     <small>{{ employee.employeeNumber }}</small>
@@ -470,7 +470,7 @@ export class EmployeeDirectoryComponent implements OnInit {
   }
 
   goToProfile(id: number | string): void {
-    this.router.navigate(['/employees', id]);
+    this.router.navigate(['/employees', id], { state: { from: 'employees' } });
   }
 
   private searchCriteria(): EmployeeSearch {

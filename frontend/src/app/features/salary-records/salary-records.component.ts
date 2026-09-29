@@ -12,6 +12,7 @@ import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { SalaryApiService } from './salary-api.service';
 import { SalaryRecord, SalaryRecordRequest, SalaryRecordSearch } from './salary-record';
+import { Router, RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-salary-records',
@@ -26,7 +27,8 @@ import { SalaryRecord, SalaryRecordRequest, SalaryRecordSearch } from './salary-
     MatProgressBarModule,
     MatSelectModule,
     MatSortModule,
-    MatTableModule
+    MatTableModule,
+    RouterLink
   ],
   template: `
     <main class="page-shell">
@@ -150,7 +152,12 @@ import { SalaryRecord, SalaryRecordRequest, SalaryRecordSearch } from './salary-
             <ng-container matColumnDef="employee">
               <th mat-header-cell *matHeaderCellDef mat-sort-header="employeeNumber">EMPLOYEE</th>
               <td mat-cell *matCellDef="let record">
-                <strong>{{ record.employeeName }}</strong>
+                <a class="profile-link"
+                   [routerLink]="['/employees', record.employeeNumber]"
+                   [state]="{ from: 'salary-records' }"
+                   (click)="goToProfile(record.employeeNumber, $event)">
+                  <strong>{{ record.employeeName }}</strong>
+                </a>
                 <small>{{ record.employeeNumber }}</small>
               </td>
             </ng-container>
@@ -233,6 +240,22 @@ import { SalaryRecord, SalaryRecordRequest, SalaryRecordSearch } from './salary-
     td.mat-mdc-cell, th.mat-mdc-header-cell { padding:12px 18px; border-bottom-color:#edf1ee; }
     td.mat-mdc-cell { color:#586b62; font-size:12px; }
     td strong { color:#294239; font-size:12px; font-weight:600; }
+    .profile-link {
+      display: inline-block;
+      color: #173f36;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .profile-link strong {
+      color: #173f36;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .profile-link:hover strong, .profile-link:hover {
+      color: #2b6146;
+      text-decoration: underline;
+    }
     td small { display:block; margin-top:4px; color:#899991; font-size:10px; }
     .empty-state,.empty-cell { padding:30px 16px; text-align:center; color:#7f9087; font-size:13px; }
     .success-message,.error-message { padding:0 4px; font-size:13px; }
@@ -247,7 +270,16 @@ import { SalaryRecord, SalaryRecordRequest, SalaryRecordSearch } from './salary-
 })
 export class SalaryRecordsComponent {
   private readonly api = inject(SalaryApiService);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+
+  goToProfile(employeeNumber: string, event?: Event): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.router.navigate(['/employees', employeeNumber], { state: { from: 'salary-records' } });
+  }
 
   readonly displayedColumns = ['employee', 'department', 'country', 'salary', 'effectiveDate', 'effectiveTo', 'reason'];
   readonly departments = ['Engineering', 'Finance', 'Sales', 'People', 'Operations', 'Product'];

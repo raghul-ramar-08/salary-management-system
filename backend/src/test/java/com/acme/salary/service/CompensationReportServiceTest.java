@@ -155,9 +155,13 @@ class CompensationReportServiceTest {
 
         assertEquals(3, report.totalHeadcount());
         assertEquals(6, report.organizationBands().size());
-        assertEquals(1, report.organizationBands().get(0).headcount()); // $0 - $30,000
-        assertEquals(1, report.organizationBands().get(2).headcount()); // $60,000 - $90,000
-        assertEquals(1, report.organizationBands().get(5).headcount()); // $150,000+
+        assertEquals("$0 – $30,000", report.organizationBands().get(0).label());
+        assertEquals("$30,001 – $60,000", report.organizationBands().get(1).label());
+        assertEquals("$60,001 – $90,000", report.organizationBands().get(2).label());
+        assertEquals("$150,001+", report.organizationBands().get(5).label());
+        assertEquals(1, report.organizationBands().get(0).headcount()); // $0 – $30,000
+        assertEquals(1, report.organizationBands().get(2).headcount()); // $60,001 – $90,000
+        assertEquals(1, report.organizationBands().get(5).headcount()); // $150,001+
 
         assertEquals(2, report.countryDistributions().size());
         var inDistribution = report.countryDistributions().get(0);
