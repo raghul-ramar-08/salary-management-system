@@ -43,4 +43,7 @@ services:
     plan: free
     envVars:
       - key: BACKEND_URL
-        value: https://acme-salary-backend.onrender.com
+        fromService:
+          name: acme-salary-backend
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
