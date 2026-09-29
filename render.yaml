@@ -14,10 +14,18 @@ services:
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      - key: SPRING_DATASOURCE_URL
+      - key: DB_HOST
         fromDatabase:
           name: acme-salary-db
-          property: connectionString
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: acme-salary-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: acme-salary-db
+          property: database
       - key: SPRING_DATASOURCE_USERNAME
         fromDatabase:
           name: acme-salary-db
@@ -26,3 +34,13 @@ services:
         fromDatabase:
           name: acme-salary-db
           property: password
+
+  - type: web
+    name: acme-salary-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    envVars:
+      - key: BACKEND_URL
+        value: https://acme-salary-backend.onrender.com
