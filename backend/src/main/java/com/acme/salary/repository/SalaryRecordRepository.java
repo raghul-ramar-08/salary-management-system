@@ -21,8 +21,8 @@ public interface SalaryRecordRepository extends JpaRepository<SalaryRecord, Long
               and (cast(:countryCode as string) is null or e.countryCode = cast(:countryCode as string))
               and (cast(:department as string) is null or lower(e.department) = lower(cast(:department as string)))
               and (cast(:currencyCode as string) is null or sr.currencyCode = cast(:currencyCode as string))
-              and (:effectiveFrom is null or sr.effectiveDate >= :effectiveFrom)
-              and (:effectiveTo is null or sr.effectiveDate <= :effectiveTo)
+              and (cast(:effectiveFrom as string) is null or sr.effectiveDate >= cast(cast(:effectiveFrom as string) as date))
+              and (cast(:effectiveTo as string) is null or sr.effectiveDate <= cast(cast(:effectiveTo as string) as date))
               and (:currentOnly = false or (
                     sr.effectiveDate <= :asOfDate
                     and (sr.effectiveTo is null or sr.effectiveTo >= :asOfDate)

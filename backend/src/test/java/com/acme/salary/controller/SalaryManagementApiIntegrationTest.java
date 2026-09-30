@@ -300,11 +300,23 @@ class SalaryManagementApiIntegrationTest {
 
     @Test
     void searchesSalaryRecordsWithDateParametersSuccessfully() throws Exception {
+        // Both dates provided
         mockMvc.perform(get("/api/salary-records")
                         .param("effectiveFrom", "2024-01-01")
                         .param("effectiveTo", "2024-12-31"))
                 .andExpect(status().isOk());
 
+        // effectiveFrom only (effectiveTo is null)
+        mockMvc.perform(get("/api/salary-records")
+                        .param("effectiveFrom", "2022-11-21"))
+                .andExpect(status().isOk());
+
+        // effectiveTo only (effectiveFrom is null)
+        mockMvc.perform(get("/api/salary-records")
+                        .param("effectiveTo", "2023-12-31"))
+                .andExpect(status().isOk());
+
+        // Neither provided (both null)
         mockMvc.perform(get("/api/salary-records"))
                 .andExpect(status().isOk());
     }
