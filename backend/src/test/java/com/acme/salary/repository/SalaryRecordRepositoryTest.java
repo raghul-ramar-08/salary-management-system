@@ -46,6 +46,33 @@ class SalaryRecordRepositoryTest {
     }
 
     @Test
+    void searchWithDateFiltersReturnsRecordsMatchingEffectiveRange() {
+        Employee employee = employees.saveAndFlush(new Employee(
+                "ACME-00002", "Alex", "Morgan", "US", "Engineering",
+                "Software Engineer", "L2", LocalDate.of(2022, 4, 1), EmploymentStatus.ACTIVE));
+        salaryRecords.saveAllAndFlush(List.of(
+                new SalaryRecord(employee, new BigDecimal("80000.00"), "USD",
+                        LocalDate.of(2023, 1, 1), LocalDate.of(2023, 12, 31), "2023 salary"),
+                new SalaryRecord(employee, new BigDecimal("90000.00"), "USD",
+                        LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31), "2024 salary"),
+                new SalaryRecord(employee, new BigDecimal("100000.00"), "USD",
+                        LocalDate.of(2025, 1, 1), null, "2025 salary")));
+
+        var results2024 = salaryRecords.search(null, null, null, null,
+                LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31),
+                false, LocalDate.of(2025, 1, 1), PageRequest.of(0, 25));
+
+        assertEquals(1, results2024.getTotalElements());
+        assertEquals(new BigDecimal("90000.00"), results2024.getContent().get(0).getAmount());
+
+        var from2024Onward = salaryRecords.search(null, null, null, null,
+                LocalDate.of(2024, 1, 1), null,
+                false, LocalDate.of(2025, 1, 1), PageRequest.of(0, 25));
+
+        assertEquals(2, from2024Onward.getTotalElements());
+    }
+
+    @Test
     void findActiveRecordsAsOfFiltersByDateAndEmploymentStatus() {
         Employee activeEmployee = employees.saveAndFlush(new Employee(
                 "ACME-00010", "Avery", "Shah", "US", "Engineering",

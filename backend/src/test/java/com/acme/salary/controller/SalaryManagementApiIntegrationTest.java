@@ -297,5 +297,16 @@ class SalaryManagementApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(1)));
     }
+
+    @Test
+    void searchesSalaryRecordsWithDateParametersSuccessfully() throws Exception {
+        mockMvc.perform(get("/api/salary-records")
+                        .param("effectiveFrom", "2024-01-01")
+                        .param("effectiveTo", "2024-12-31"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/salary-records"))
+                .andExpect(status().isOk());
+    }
 }
 

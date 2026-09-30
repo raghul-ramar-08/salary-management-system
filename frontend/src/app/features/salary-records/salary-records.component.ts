@@ -83,15 +83,15 @@ import { Router, RouterLink } from '@angular/router';
             <input matInput name="effectiveFrom" type="date" [(ngModel)]="effectiveFrom">
           </mat-form-field>
 
+          <mat-form-field appearance="outline" class="date-filter">
+            <mat-label>Effective to</mat-label>
+            <input matInput name="effectiveTo" type="date" [(ngModel)]="effectiveTo">
+          </mat-form-field>
+
           <label class="current-filter">
             <input type="checkbox" name="currentOnly" [(ngModel)]="currentOnly">
             Current salary only
           </label>
-
-          <mat-form-field appearance="outline" class="date-filter">
-            <mat-label>Effective start through</mat-label>
-            <input matInput name="effectiveTo" type="date" [(ngModel)]="effectiveTo">
-          </mat-form-field>
 
           <div class="filter-actions">
             <button mat-flat-button color="primary" type="submit" [disabled]="loading">
