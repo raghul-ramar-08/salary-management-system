@@ -26,6 +26,16 @@ import { ReportApiService } from '../../services/report-api.service';
             Cross-country payroll, median/average benchmarks, salary band distributions, and departmental pay extremes.
           </p>
         </div>
+        <div class="controls-card" aria-label="Dashboard filters">
+          <label>
+            <span>As-of date</span>
+            <input type="date" name="asOfDate" [(ngModel)]="asOfDate" (change)="loadAllReports()">
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="includeInactive" [(ngModel)]="includeInactive" (change)="loadAllReports()">
+            <span>Include inactive</span>
+          </label>
+        </div>
       </header>
 
       <mat-progress-bar *ngIf="isAnyLoading()" mode="indeterminate" class="dashboard-progress-bar"></mat-progress-bar>
@@ -252,10 +262,6 @@ import { ReportApiService } from '../../services/report-api.service';
           </div>
           <div class="distribution-toolbar" aria-label="Histogram filters">
             <label class="inline-filter">
-              <span>As-of date:</span>
-              <input type="date" name="distAsOfDate" [(ngModel)]="asOfDate" (change)="loadAllReports()">
-            </label>
-            <label class="inline-filter">
               <span>Bands:</span>
               <select name="distBandSize" [(ngModel)]="bandSize" (ngModelChange)="loadDistributionOnly()">
                 <option [ngValue]="15000">$15,000 bands</option>
@@ -272,10 +278,6 @@ import { ReportApiService } from '../../services/report-api.service';
                   {{ countryName(c.countryCode) }} ({{ c.totalHeadcount | number }} employees)
                 </option>
               </select>
-            </label>
-            <label class="inline-filter checkbox-inline">
-              <input type="checkbox" name="includeInactive" [(ngModel)]="includeInactive" (change)="loadAllReports()">
-              <span>Include inactive</span>
             </label>
           </div>
         </div>
