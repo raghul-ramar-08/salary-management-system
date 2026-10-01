@@ -1,12 +1,16 @@
 .gradle/
 **/build/
+bin/
+**/bin/
 out/
 .idea/
 *.iml
 data/
-docs/
 node_modules/
 dist/
 .angular/
 logs/
 *.log
+temp.txt
+docs/commit_Info.md
+docs/commit_info.md

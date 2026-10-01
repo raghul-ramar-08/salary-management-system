@@ -4,6 +4,21 @@ A full-stack compensation management and analytics application built with **Spri
 
 ---
 
+## 🔗 Live Application & Demo Walkthrough
+
+- **🌐 Live Cloud Application (Railway):** [https://salary-frontend-production.up.railway.app](https://salary-frontend-production.up.railway.app)
+- **🎥 Video Demo Walkthrough (8 min):** [Watch on YouTube](https://youtu.be/shFp-NOKtfU)
+
+---
+
+## 📚 Project Documentation (`docs/`)
+
+- 📖 **[`docs/PROCESS_LOG.md`](docs/PROCESS_LOG.md)** — Engineering Journey & Real Issues Solved (PostgreSQL casting, CORS, UI UX)
+- 📐 **[`docs/data_modelling.md`](docs/data_modelling.md)** — Entity Relationships, Schemas & Design Trade-offs
+- 🏗️ **[`docs/design-notes.md`](docs/design-notes.md)** — Architecture, Tech Stack Decisions & REST API Contracts
+
+---
+
 ## Features & Capabilities
 
 ### 1. Employee & Compensation Management
@@ -44,9 +59,9 @@ A full-stack compensation management and analytics application built with **Spri
 
 ## Architecture & Data Model
 
-- **Backend (`backend/`)**: Java 21, Spring Boot 3.5, Spring Data JPA, Jakarta Bean Validation, H2 (local dev & fast tests), PostgreSQL (Docker / production deployment).
+- **Backend (`backend/`)**: Java 21, Spring Boot 3.5, Spring Data JPA, Jakarta Bean Validation, H2 (local dev & fast tests), PostgreSQL (Docker / Railway production deployment).
 - **Frontend (`frontend/`)**: Angular 19 standalone components, Angular Material, RxJS.
-- **Data Model**: Detailed entity-relationship diagrams, schema reference, and design tradeoffs are documented in [`docs/data_modelling.md`](docs/data_modelling.md).
+- **Reverse Proxy**: Nginx container handling SPA routing, static asset serving, and `/api` reverse-proxying.
 
 ---
 
@@ -119,16 +134,21 @@ npm run build
 
 ## Cloud Deployment & Demo Walkthrough
 
-### Cloud Deployment (Render / Railway)
-- **Docker Compose (VPS / Railway / Render)**:
-  - Run `docker compose up --build -d` on any Docker-capable host, or connect the repository on Render using the included [`render.yaml`](render.yaml) blueprint (`SPRING_PROFILES_ACTIVE=prod` with managed PostgreSQL).
-- **Persistent Storage vs. Local H2**:
-  - Local development and `./gradlew test` use in-memory **H2** (`ddl-auto=create-drop`) for zero-dependency startup and fast, isolated test execution.
-  - Docker and deployed environments activate `SPRING_PROFILES_ACTIVE=prod` (`application-prod.properties`), connecting to **PostgreSQL** with `ddl-auto=update` and a persistent volume (`postgres-salary-data`) so newly created employees and salary records survive container restarts.
+### Production Deployment (Railway)
+The live production application is deployed on **Railway** as a fully containerized multi-service architecture:
+- **🌐 Live URL:** [https://salary-frontend-production.up.railway.app](https://salary-frontend-production.up.railway.app)
+- **Architecture on Railway:**
+  - **`salary-frontend`**: Angular SPA served through **Nginx** reverse proxy, handling client-side SPA routing (`try_files $uri $uri/ /index.html`) and proxying API traffic.
+  - **`salary-backend`**: Spring Boot 3 Java 21 container running with JVM flags (`-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC`) to ensure memory stability on cloud tiers.
+  - **`salary-postgres`**: Managed PostgreSQL database with persistent volume storage (`postgres-volume`) so employee records, salary history, and newly created profiles persist across redeploys.
+  - **Profiles**: Production runs with `SPRING_PROFILES_ACTIVE=prod`, automatically applying PostgreSQL-compatible migrations and entity mapping.
 
-### Suggested 3-Minute Demo Video Script
-1. **Employee Directory (`/`)**: Show the 10,000 seeded employees across 5 countries (`US`, `IN`, `GB`, `DE`, `SG`), filter by country/department/status, and sort columns with instant server-side pagination.
-2. **Create Employee (`+ Add employee`)**: Onboard a new employee (e.g., `ACME-10001`) with an initial salary in one transaction, then click `View profile →`.
-3. **Employee Profile, Edit Details & Versioned Salary Change (`/employees/:id`)**: Inspect the employee’s active salary and effective-dated history. Edit employee profile details (department, job title, level, status) and save. Record a promotion salary change and show that the previous salary period’s `End Date` is automatically closed on the day before the new effective date (`Historical` vs `Current`).
-4. **Compensation Analytics Dashboard (`/dashboard`)**: Walk through the normalized `USD` KPI cards, the explicit fixed-rate FX disclosure banner, the Country & Department pay/payroll tables, the configurable Salary Band Distribution histogram (`$15k` / `$25k` / `$40k` / `$50k` bands), and the Highest/Lowest-Paid Employees per department.
+### Local & Alternative Deployments
+- **Local Dev**: In-memory **H2** database (`ddl-auto=create-drop`) for zero-configuration startup and fast JUnit tests.
+- **Docker Compose**: Run `docker compose up --build -d` to spin up PostgreSQL, backend, and frontend locally.
+- **Render**: Blueprint included in [`render.yaml`](render.yaml).
+
+### 🎥 Demo Video Walkthrough
+- **Full Walkthrough (8 min):** [Watch on YouTube](https://youtu.be/shFp-NOKtfU)
+- Covers end-to-end user workflows, atomic transactions, date clamping for salary revisions, and high-performance dashboard analytics.
 
